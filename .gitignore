@@ -4,6 +4,11 @@
 # .tfstate files
 *.tfstate
 *.tfstate.*
+terraform.plan
 
 # .tfvars files
 *.tfvars
+
+# IDEA
+*.iml
+.idea

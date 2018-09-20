@@ -18,10 +18,12 @@ steps:
     cat values.yaml \
       | sed "s|{GCS-BUCKET-NAME}|${_SPINNAKER_CONFIG_BUCKET}|" \
       | sed "s|{INSERT CLOUD STORAGE JSON HERE}|$$JSON_KEY|" \
+      | sed "s|{INSERT GCR JSON HERE}|$$JSON_KEY|" \
       > values-updated.yaml
     helm --debug upgrade --install ea-cd-spin stable/spinnaker \
       --timeout 1200 \
       --wait \
+      --recreate-pods \
       --namespace spinnaker \
       --values values-updated.yaml
   env:
@@ -29,4 +31,5 @@ steps:
   - 'CLOUDSDK_COMPUTE_REGION=$_CLOUDSDK_COMPUTE_REGION'
   - 'CLOUDSDK_CONTAINER_CLUSTER=$_CLOUDSDK_CONTAINER_CLUSTER'
   - 'TILLERLESS=true'
+timeout: 1800s
 tags: ['spinnaker']

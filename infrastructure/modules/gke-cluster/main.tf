@@ -27,21 +27,11 @@ resource "google_container_cluster" "cluster" {
   min_master_version = "${var.kubernetes_version}"
   node_version       = "${var.kubernetes_version}"
 
-  # Restrict master authorised networks
-  master_authorized_networks_config {
-    cidr_blocks = "${var.master_authorized_cidr_blocks}"
-  }
-
   # Set a maintenance window
   maintenance_policy {
     daily_maintenance_window {
       start_time = "${var.maintenance_window_start_time}"
     }
-  }
-
-  network_policy {
-    # Enable network policy.  A default deny all policy is then configured as a local exec below
-    enabled = true
   }
 
   # https://cloud.google.com/kubernetes-engine/docs/how-to/hardening-your-cluster#disable_abac

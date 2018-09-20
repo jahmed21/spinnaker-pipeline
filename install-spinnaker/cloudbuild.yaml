@@ -1,0 +1,32 @@
+substitutions:
+  _WORKING_DIR: install-spinnaker
+  _CD_PROJECT_ID: ea-paas
+  _CLOUDSDK_CONTAINER_CLUSTER: ea-cd-gke
+  _CLOUDSDK_COMPUTE_REGION: australia-southeast1
+  _SPINNAKER_CONFIG_BUCKET: ea-paas-spinnaker-config
+  _GCS_JSON_KEY_URI: gs://ea-paas-halyard-config/spinnaker-gcs-access-key.json
+steps:
+- name: gcr.io/$PROJECT_ID/helm
+  dir: ${_WORKING_DIR}
+  args:
+  - 'bash'
+  - '-c'
+  - |
+    set -xeo pipefail
+    kubectl config view
+    JSON_KEY=$(gsutil cat ${_GCS_JSON_KEY_URI} | tr -d '\n' | sed 's/\\/\\\\/g')
+    cat values.yaml \
+      | sed "s|{GCS-BUCKET-NAME}|${_SPINNAKER_CONFIG_BUCKET}|" \
+      | sed "s|{INSERT CLOUD STORAGE JSON HERE}|$$JSON_KEY|" \
+      > values-updated.yaml
+    helm --debug upgrade --install ea-cd-spin stable/spinnaker \
+      --timeout 1200 \
+      --wait \
+      --namespace spinnaker \
+      --values values-updated.yaml
+  env:
+  - 'GCLOUD_PROJECT=$_CD_PROJECT_ID'
+  - 'CLOUDSDK_COMPUTE_REGION=$_CLOUDSDK_COMPUTE_REGION'
+  - 'CLOUDSDK_CONTAINER_CLUSTER=$_CLOUDSDK_CONTAINER_CLUSTER'
+  - 'TILLERLESS=true'
+tags: ['spinnaker']

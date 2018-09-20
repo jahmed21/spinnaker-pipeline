@@ -17,13 +17,13 @@ halyard:
 
 # Configure your Docker registries here
 dockerRegistries:
-- name: gcrdockerhub
-  address: mirror.gcr.io
+- name: dockerhub
+  address: index.docker.io
   repositories:
-  - library/alpine
-  - library/ubuntu
-  - library/centos
-  - library/nginx
+    - library/alpine
+    - library/ubuntu
+    - library/centos
+    - library/nginx
 # - name: gcr
 #   address: https://gcr.io
 #   username: _json_key
@@ -52,11 +52,11 @@ kubeConfig:
 # Change this if youd like to expose Spinnaker outside the cluster
 ingress:
   enabled: false
-    # host: spinnaker.example.org
-    # annotations:
+  # host: spinnaker.example.org
+  # annotations:
     # ingress.kubernetes.io/ssl-redirect: 'true'
     # kubernetes.io/ingress.class: nginx
-  # kubernetes.io/tls-acme: "true"
+    # kubernetes.io/tls-acme: "true"
   # tls:
   #  - secretName: -tls
   #    hosts:
@@ -68,9 +68,9 @@ ingress:
 #   - artifacts
 #   - pipeline-templates
 spinnakerFeatureFlags:
-- artifacts
-- jobs
-- pipeline-templates
+  - artifacts
+  - jobs
+  - pipeline-templates
 
 # Node labels for pod assignment
 # Ref: https://kubernetes.io/docs/user-guide/node-selection/
@@ -80,14 +80,14 @@ nodeSelector: {}
 # Redis password to use for the in-cluster redis service
 # Redis is not exposed publically
 redis:
-  enabled: true
   password: password
   nodeSelector: {}
   cluster:
-    enabled: false
+    enabled: true
+# Uncomment if you don't want to create a PVC for redis
   master:
     persistence:
-      enabled: false
+      enabled: true
 
 # Minio access/secret keys for the in-cluster S3 usage
 # Minio is not exposed publically
@@ -96,11 +96,9 @@ minio:
 
 gcs:
   enabled: true
-  project: eax-service-project-non-prod
-  bucket: "ea-paas-spinnaker-config"
-  #the gke secret that contains the key.json to for the spinnaker service account.
-  #this secret is created by cloudbuild using kubectl command.
-  secretName: spinnaker-service-account-key
+  project: my-project-name
+  bucket: '{GCS-BUCKET-NAME}'
+  jsonKey: '{INSERT CLOUD STORAGE JSON HERE}'
 
 s3:
   enabled: false

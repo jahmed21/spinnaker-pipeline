@@ -55,7 +55,7 @@ ingress:
     # host: spinnaker.example.org
     # annotations:
     # ingress.kubernetes.io/ssl-redirect: 'true'
-    # kubernetes.io/ingress.class: nginx
+  # kubernetes.io/ingress.class: nginx
   # kubernetes.io/tls-acme: "true"
   # tls:
   #  - secretName: -tls

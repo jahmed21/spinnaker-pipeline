@@ -93,6 +93,13 @@ resource "google_storage_bucket_iam_member" "cloudbuild-access-to-halyard-config
   member = "serviceAccount:${google_service_account.spinnaker_gcs.email}"
 }
 
+# Grant spinnaker service account objectviewer permission for GCR
+resource "google_storage_bucket_iam_member" "gcr_read_access" {
+  bucket = "artifacts.${local.project_id}.appspot.com"
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.spinnaker_gcs.email}"
+}
+
 # TODO
 output "cluster_name" {
   value = "${module.cd-gke.cluster_name}"

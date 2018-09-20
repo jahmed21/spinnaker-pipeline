@@ -44,13 +44,6 @@ resource "google_container_cluster" "cluster" {
       disabled = true
     }
 
-    # TODO Tune this
-    # https://cloud.google.com/kubernetes-engine/docs/how-to/hardening-your-cluster#restrict_with_network_policy
-    network_policy_config {
-      # enable network policy
-      disabled = false
-    }
-
     http_load_balancing {
       # enable http load balancing
       disabled = false

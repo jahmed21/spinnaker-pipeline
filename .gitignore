@@ -12,3 +12,6 @@ terraform.plan
 # IDEA
 *.iml
 .idea
+
+# vi
+.*.swp

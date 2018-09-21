@@ -17,13 +17,11 @@ halyard:
 
 # Configure your Docker registries here
 dockerRegistries:
-- name: gcr
-  address: https://gcr.io
+- name: asia-gcr
+  address: https://asia.gcr.io
   username: _json_key
   password: '{INSERT GCR JSON HERE}'
   email: 1234@5678.com
-  repositories:
-  - ea-paas
 
 # If you don't want to put your passwords into a values file
 # you can use a pre-created secret instead of putting passwords

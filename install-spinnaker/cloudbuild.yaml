@@ -5,23 +5,37 @@ substitutions:
   _CLOUDSDK_COMPUTE_REGION: australia-southeast1
   _SPINNAKER_CONFIG_BUCKET: ea-paas-spinnaker-config
   _GCS_JSON_KEY_URI: gs://ea-paas-halyard-config/spinnaker-gcs-access-key.json
+  _HELM_RELEASE_NAME: ea-cd-spin
 steps:
-- name: gcr.io/$PROJECT_ID/helm
+- name: asia.gcr.io/$PROJECT_ID/helm
   dir: ${_WORKING_DIR}
   args:
   - 'bash'
   - '-c'
   - |
     set -xeo pipefail
-    kubectl config view
+    
+    helm status ${_HELM_RELEASE_NAME} || true
+
+    if [ ! -z "$(helm status ${_HELM_RELEASE_NAME} | grep 'STATUS: \(FAILED\|PENDING_INSTALL\)' )" ]; then
+      echo "Cleaning up failed install"
+      helm --debug delete --purge  ${_HELM_RELEASE_NAME} || true
+      # delete jobs, pods, statefulsets, configmaps, secrets...etc
+      kubectl --namespace spinnaker delete all --all || true
+      # now delete the entire namesapce
+      kubectl delete namespace spinnaker || true
+      # now delete the tillerless storage
+      kubectl --namespace kube-system delete secret "${_HELM_RELEASE_NAME}.v1" || true
+    fi
     JSON_KEY=$(gsutil cat ${_GCS_JSON_KEY_URI} | tr -d '\n' | sed 's/\\/\\\\/g')
     cat values.yaml \
       | sed "s|{GCS-BUCKET-NAME}|${_SPINNAKER_CONFIG_BUCKET}|" \
       | sed "s|{INSERT CLOUD STORAGE JSON HERE}|$$JSON_KEY|" \
       | sed "s|{INSERT GCR JSON HERE}|$$JSON_KEY|" \
       > values-updated.yaml
-    helm --debug upgrade --install ea-cd-spin stable/spinnaker \
-      --timeout 1200 \
+    cat values-updated.yaml
+    helm --debug upgrade --install ${_HELM_RELEASE_NAME} stable/spinnaker \
+      --timeout 900 \
       --wait \
       --recreate-pods \
       --namespace spinnaker \

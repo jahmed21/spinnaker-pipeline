@@ -24,6 +24,8 @@ steps:
       kubectl --namespace spinnaker delete all --all || true
       # now delete the entire namesapce
       kubectl delete namespace spinnaker || true
+      # now delete the CRB
+      kubectl delete clusterrolebinding  "${_HELM_RELEASE_NAME}-spinnaker-spinnaker" || true
       # now delete the tillerless storage
       kubectl --namespace kube-system delete secret "${_HELM_RELEASE_NAME}.v1" || true
     fi

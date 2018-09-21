@@ -19,15 +19,17 @@ steps:
 
     if [ ! -z "$(helm status ${_HELM_RELEASE_NAME} | grep 'STATUS: \(FAILED\|PENDING_INSTALL\)' )" ]; then
       echo "Cleaning up failed install"
-      helm --debug delete --purge  ${_HELM_RELEASE_NAME} || true
+      helm --debug delete --purge  ${_HELM_RELEASE_NAME} --timeout 180 || true
       # delete jobs, pods, statefulsets, configmaps, secrets...etc
-      kubectl --namespace spinnaker delete all --all || true
+      kubectl --namespace spinnaker --timeout 180s delete all --all || true
       # now delete the entire namesapce
-      kubectl delete namespace spinnaker || true
+      kubectl delete namespace spinnaker --timeout 180s || true
       # now delete the CRB
       kubectl delete clusterrolebinding  "${_HELM_RELEASE_NAME}-spinnaker-spinnaker" || true
       # now delete the tillerless storage
       kubectl --namespace kube-system delete secret "${_HELM_RELEASE_NAME}.v1" || true
+      # give sometime for all cleanup to finish
+      sleep 180
     fi
     JSON_KEY=$(gsutil cat ${_GCS_JSON_KEY_URI} | tr -d '\n' | sed 's/\\/\\\\/g')
     cat values.yaml \

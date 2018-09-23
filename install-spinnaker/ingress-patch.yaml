@@ -1,16 +1,17 @@
 spec:
   rules:
-  - http:
+  - host: spinnaker.ea.paas.test
+    http:
       paths:
+      - path: /
+        backend:
+          serviceName: spin-deck
+          servicePort: 9000
       - path: /*
         backend:
           serviceName: spin-deck
           servicePort: 9000
       - path: /auth/*
-        backend:
-          serviceName: spin-gate
-          servicePort: 8084
-      - path: /gate/*
         backend:
           serviceName: spin-gate
           servicePort: 8084

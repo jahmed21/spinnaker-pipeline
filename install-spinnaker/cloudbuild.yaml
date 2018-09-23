@@ -1,11 +1,17 @@
 substitutions:
   _WORKING_DIR: install-spinnaker
   _CD_PROJECT_ID: ea-paas
+  _HELM_RELEASE_NAME: ea-cd-spin
   _CLOUDSDK_CONTAINER_CLUSTER: ea-cd-gke
   _CLOUDSDK_COMPUTE_REGION: australia-southeast1
   _SPINNAKER_CONFIG_BUCKET: ea-paas-spinnaker-config
   _GCS_JSON_KEY_URI: gs://ea-paas-halyard-config/spinnaker-gcs-access-key.json
-  _HELM_RELEASE_NAME: ea-cd-spin
+  _OAUTH2_CLIENT_ID: e90b7fb6258dc18f9de6
+  _OAUTH2_CLIENT_SECRET: 88b7f04c24c62cac621fa0d014dc663894ce4399
+  _OAUTH2_PROVIDER: github
+  _SPINNAKER_NS: spinnaker
+  _SPINNAKER_DOMAIN_NAME: spinnaker.ea.paas.test
+  _UNINSTALL: 'false'
 steps:
 - name: asia.gcr.io/$PROJECT_ID/helm
   dir: ${_WORKING_DIR}
@@ -15,39 +21,56 @@ steps:
   - |
     set -xeo pipefail
     
-    helm status ${_HELM_RELEASE_NAME} || true
+    if [[ "${_UNINSTALL}" != "true" ]]; then
+      helm status ${_HELM_RELEASE_NAME} || true
+    fi
 
-    if [ ! -z "$(helm status ${_HELM_RELEASE_NAME} | grep 'STATUS: \(FAILED\|PENDING_INSTALL\)' )" ]; then
+    if [[ "${_UNINSTALL}" == "true" || ! -z "$(helm status ${_HELM_RELEASE_NAME} | grep 'STATUS: \(FAILED\|PENDING\)' )" ]]; then
       echo "Cleaning up failed install"
       helm --debug delete --purge  ${_HELM_RELEASE_NAME} --timeout 180 || true
       # delete jobs, pods, statefulsets, configmaps, secrets...etc
-      kubectl --namespace spinnaker --timeout 180s delete all --all || true
+      kubectl --namespace ${_SPINNAKER_NS} --timeout 180s delete all --all || true
       # now delete the entire namesapce
-      kubectl delete namespace spinnaker --timeout 180s || true
+      kubectl delete namespace ${_SPINNAKER_NS} --timeout 180s || true
       # now delete the CRB
       kubectl delete clusterrolebinding  "${_HELM_RELEASE_NAME}-spinnaker-spinnaker" || true
       # now delete the tillerless storage
       kubectl --namespace kube-system delete secret "${_HELM_RELEASE_NAME}.v1" || true
       # give sometime for all cleanup to finish
-      sleep 180
+      sleep 60
     fi
+
+    # Encode spinnaker GCS Key for sed to inject them in values.yaml
     JSON_KEY=$(gsutil cat ${_GCS_JSON_KEY_URI} | tr -d '\n' | sed 's/\\/\\\\/g')
+
+    # Replace the placeholders in values.yaml
     cat values.yaml \
       | sed "s|{GCS-BUCKET-NAME}|${_SPINNAKER_CONFIG_BUCKET}|" \
       | sed "s|{INSERT CLOUD STORAGE JSON HERE}|$$JSON_KEY|" \
       | sed "s|{INSERT GCR JSON HERE}|$$JSON_KEY|" \
+      | sed "s|{SPINNAKER_DOMAIN_NAME}|${_SPINNAKER_DOMAIN_NAME}|" \
       > values-updated.yaml
     cat values-updated.yaml
+
+    # Create configmap for additional hal config
+    ./create-halyard-additional-config.sh
+
+    # Replace the placeholders in values.yaml
     helm --debug upgrade --install ${_HELM_RELEASE_NAME} stable/spinnaker \
-      --timeout 900 \
+      --timeout 1200 \
       --wait \
-      --recreate-pods \
-      --namespace spinnaker \
+      --namespace ${_SPINNAKER_NS} \
       --values values-updated.yaml
   env:
-  - 'GCLOUD_PROJECT=$_CD_PROJECT_ID'
-  - 'CLOUDSDK_COMPUTE_REGION=$_CLOUDSDK_COMPUTE_REGION'
-  - 'CLOUDSDK_CONTAINER_CLUSTER=$_CLOUDSDK_CONTAINER_CLUSTER'
+  - 'GCLOUD_PROJECT=${_CD_PROJECT_ID}'
+  - 'CLOUDSDK_COMPUTE_REGION=${_CLOUDSDK_COMPUTE_REGION}'
+  - 'CLOUDSDK_CONTAINER_CLUSTER=${_CLOUDSDK_CONTAINER_CLUSTER}'
   - 'TILLERLESS=true'
+  - 'SPINNAKER_NS=${_SPINNAKER_NS}'
+  - 'OAUTH2_CLIENT_ID=${_OAUTH2_CLIENT_ID}'
+  - 'OAUTH2_CLIENT_SECRET=${_OAUTH2_CLIENT_SECRET}'
+  - 'OAUTH2_PROVIDER=${_OAUTH2_PROVIDER}'
+  - 'HELM_RELEASE_NAME=${_HELM_RELEASE_NAME}'
+  - 'SPINNAKER_DOMAIN_NAME=${_SPINNAKER_DOMAIN_NAME}'
 timeout: 1800s
 tags: ['spinnaker']

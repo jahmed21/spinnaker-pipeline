@@ -6,7 +6,7 @@ halyard:
   # Provide a config map with Hal commands that will be run the core config (storage)
   # The config map should contain a script in the config.sh key
   additionalConfig:
-    enabled: false
+    enabled: true
     configMapName: my-halyard-config
     configMapKey: config.sh
 
@@ -22,6 +22,8 @@ dockerRegistries:
   username: _json_key
   password: '{INSERT GCR JSON HERE}'
   email: 1234@5678.com
+  repositories:
+  - ea-paas/sample-sb
 
 # If you don't want to put your passwords into a values file
 # you can use a pre-created secret instead of putting passwords
@@ -44,12 +46,12 @@ kubeConfig:
 
 # Change this if youd like to expose Spinnaker outside the cluster
 ingress:
-  enabled: false
-    # host: spinnaker.example.org
-    # annotations:
-    # ingress.kubernetes.io/ssl-redirect: 'true'
-  # kubernetes.io/ingress.class: nginx
-  # kubernetes.io/tls-acme: "true"
+  enabled: true
+  host: "{SPINNAKER_DOMAIN_NAME}"
+  #annotations:
+  #  ingress.kubernetes.io/ssl-redirect: 'true'
+  #  kubernetes.io/ingress.class: nginx
+  #  kubernetes.io/tls-acme: 'true'
   # tls:
   #  - secretName: -tls
   #    hosts:

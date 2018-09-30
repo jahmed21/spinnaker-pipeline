@@ -132,6 +132,11 @@ EOF_KUBECTL
     | yq r - 'data'  \
     | sed "s/^/  /" >> $configmap_file
 
+  # Add halyard-additional-config script to configmap
+  kubectl create configmap test-$$ --from-file=halyard-app-config.sh --dry-run -o yaml \
+    | yq r - 'data'  \
+    | sed "s/^/  /" >> $configmap_file
+
   cat $configmap_file
 
   # validate the config file

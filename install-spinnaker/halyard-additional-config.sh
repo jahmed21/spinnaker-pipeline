@@ -39,3 +39,6 @@ if [[ "${_OAUTH2_ENABLED}" == "true" ]]; then
 
     $HAL_COMMAND config security authn oauth2 enable
 fi
+
+# Copy the app-config script to halyard container
+kubectl -n ${_SPINNAKER_NS} cp /opt/halyard/additional/halyard-app-config.sh $HALYARD_POD:/home/spinnaker/halyard-app-config.sh

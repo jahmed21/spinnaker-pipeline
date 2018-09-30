@@ -69,11 +69,13 @@ function getKubeContext() {
     echo "Getting kubeconfig for $_APP_CLUSTER cluster"
     gcloud container clusters get-credentials ${_APP_CLUSTER} --region ${_REGION} --project ${_APP_PROJECT_ID}
     _APP_CLUSTER_KUBECONTEXT=$(kubectl config current-context)
+    echo "Context: $_APP_CLUSTER_KUBECONTEXT"
 
     echo
     echo "Getting kubeconfig for $_EX_CLUSTER cluster"
     gcloud container clusters get-credentials ${_EX_CLUSTER} --region ${_REGION} --project ${_EX_PROJECT_ID}
     _EX_CLUSTER_KUBECONTEXT=$(kubectl config current-context)
+    echo "Context: $_EX_CLUSTER_KUBECONTEXT"
 }
 
 function appClusterKubectl() {

@@ -5,4 +5,4 @@ if [ ! -z "$_prevPID" ]; then
   kill $_prevPID
 fi
 kubectl port-forward --namespace spinnaker $(kubectl get pods --namespace spinnaker -l "cluster=spin-deck" -o jsonpath="{.items[0].metadata.name}") 9000 > /dev/null  &
-#kubectl port-forward --namespace spinnaker $(kubectl get pods --namespace spinnaker -l "cluster=spin-gate" -o jsonpath="{.items[0].metadata.name}") 8084 > /dev/null  &
+kubectl port-forward --namespace spinnaker $(kubectl get pods --namespace spinnaker -l "cluster=spin-gate" -o jsonpath="{.items[0].metadata.name}") 8084 > /dev/null  &

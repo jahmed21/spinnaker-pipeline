@@ -1,9 +1,9 @@
 # Create the Node Pool
 
 resource "google_container_node_pool" "node_pool" {
-  name    = "${var.name}"
+  name = "${var.name}"
   cluster = "${var.cluster_name}"
-  region  = "${var.region}"
+  region = "${var.region}"
   project = "${var.project_id}"
 
   initial_node_count = "${var.initial_node_count}"
@@ -14,12 +14,14 @@ resource "google_container_node_pool" "node_pool" {
   }
 
   management {
-    auto_repair  = true
+    auto_repair = true
     auto_upgrade = true
   }
 
+
   node_config {
-    image_type   = "COS"
+    preemptible = true
+    image_type = "COS"
     machine_type = "${var.node_instance_type}"
     disk_size_gb = "${var.node_disk_size_gb}"
 

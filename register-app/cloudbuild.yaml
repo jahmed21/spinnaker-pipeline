@@ -1,0 +1,29 @@
+substitutions:
+  _WORKING_DIR: .
+  _EX_GKE_CLUSTER: ea-cd-gke
+  _APP_GKE_CLUSTER: ea-app-gke
+  _APP_REGION: australia-southeast1
+  _APP_PROJECT: ea-paas
+  _APP_NAMESPACE: default
+steps:
+- name: gcr.io/cloud-builders/kubectl
+  dir: ${_WORKING_DIR}
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    set -xeo pipefail
+
+    gcloud container clusters get-credentials ${_APP_GKE_CLUSTER} --region ${_APP_REGION} --project ${_APP_PROJECT}
+    kubectl config view --flatten
+
+    export SPIN_SA_NAME="${_EX_GKE_CLUSTER}-spinnaker"
+
+    # Create spinnaker service account and RBAC
+    ./spinnaker-sa.sh
+
+    ./create-kubeconfig.sh $$SPIN_SA_NAME
+  env:
+  - 'EX_GKE_CLUSTER=${_EX_GKE_CLUSTER}'
+  - 'APP_NAMESPACE=${_APP_NAMESPACE}'
+timeout: 900s

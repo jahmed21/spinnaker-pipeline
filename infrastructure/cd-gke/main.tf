@@ -19,22 +19,14 @@ data "google_container_engine_versions" "gke_versions" {
 }
 
 module "cd-gke" {
-  source                  = "modules/gke-cluster"
+  source                  = "../modules/gke-cluster"
   name                    = "ea-cd-gke"
   region                  = "${var.region}"
   project_id              = "${local.project_id}"
   cluster_service_account = "${format("%s-compute@developer.gserviceaccount.com", data.google_project.this_projecct.number)}"
-
-  master_authorized_cidr_blocks = [
-    {
-      display_name = "Starhub Singapore"
-      cidr_block   = "182.55.128.0/19"
-    },
-  ]
-
-  node_instance_type = "n1-standard-2"
-  max_node_count     = "2"
-  kubernetes_version = "${data.google_container_engine_versions.gke_versions.latest_master_version}"
+  node_instance_type      = "n1-standard-2"
+  max_node_count          = "2"
+  kubernetes_version      = "${data.google_container_engine_versions.gke_versions.latest_master_version}"
 }
 
 # Create GCS bucket to store spinnaker configuration

@@ -1,5 +1,5 @@
 halyard:
-  spinnakerVersion: 1.9.3
+  spinnakerVersion: 1.9.4
   image:
     repository: gcr.io/spinnaker-marketplace/halyard
     tag: 1.10.1
@@ -15,15 +15,15 @@ halyard:
 # For more info visit:
 #   https://www.spinnaker.io/setup/providers/docker-registry/
 
-# Configure your Docker registries here
+#Configure your Docker registries here
 dockerRegistries:
-- name: asia-gcr
+- name: gcr
   address: https://asia.gcr.io
   username: _json_key
-  password: '{INSERT GCR JSON HERE}'
+  password: ''
   email: 1234@5678.com
-  repositories:
-  - ea-paas/sample-sb
+#  repositories:
+#  - ea_paas
 
 # If you don't want to put your passwords into a values file
 # you can use a pre-created secret instead of putting passwords
@@ -46,8 +46,8 @@ kubeConfig:
 
 # Change this if youd like to expose Spinnaker outside the cluster
 ingress:
-  enabled: true
-  host: "{SPINNAKER_DOMAIN_NAME}"
+  enabled: false
+  host: ""
   #annotations:
   #  ingress.kubernetes.io/ssl-redirect: 'true'
   #  kubernetes.io/ingress.class: nginx
@@ -91,9 +91,9 @@ minio:
 
 gcs:
   enabled: true
-  project: my-project-name
-  bucket: '{GCS-BUCKET-NAME}'
-  jsonKey: '{INSERT CLOUD STORAGE JSON HERE}'
+  project: ""
+  bucket: ""
+  jsonKey: ''
 
 s3:
   enabled: false
@@ -107,5 +107,5 @@ serviceAccount:
   create: true
   # The name of the ServiceAccounts to use.
   # If left blank it is auto-generated from the fullname of the release
-  halyardName:
-  spinnakerName:
+  halyardName: halyard
+  spinnakerName: spinnaker

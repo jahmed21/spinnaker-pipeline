@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# This script is copied to halyard pod by helm install script (install-spinnaker.sh)
+# Invoked by register-app cloudbuild (register-app.sh), to configure halyard with application details (docker-registry and  kubeconfig)
+
 set -eo pipefail
 
 # Create a temp directory for all files generated during this execution
@@ -107,4 +110,5 @@ processDockerRegistryAccounts
 processKubernetesAccounts
 
 # Apply  the config changes
+hal config
 hal deploy apply

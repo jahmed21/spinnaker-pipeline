@@ -217,8 +217,23 @@ function createDockerConfigSecretInExCluster() {
   fi
 }
 
+function invokeHalyardAppConfigScript() {
+
+  if ! local halyard_pod_name=$(exClusterKubectl get po \
+            -l component=halyard,statefulset.kubernetes.io/pod-name \
+            --field-selector status.phase=Running \
+            -o jsonpath="{.items[0].metadata.name}"); then
+    echo "Halyard not running !!!!"
+    exit 1
+  fi
+
+  echo "Executing halyard-app-config.sh in $halyard_pod_name"
+  exClusterKubectl exec $halyard_pod_name -- bash /home/spinnaker/halyard-app-config.sh
+}
+
 set +x
 getKubeContext
 createAppServiceAccount
 createAppKubeConfigInExCluster
 createDockerConfigSecretInExCluster
+invokeHalyardAppConfigScript

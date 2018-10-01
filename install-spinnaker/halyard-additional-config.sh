@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 
-set -xeo pipefail
 # This script is executed as part of helm install/upgrade job
 # These are additional halyard config applied before deploying spinnaker
+
+set -xeo pipefail
 
 _SPINNAKER_NS="$1"
 _OAUTH2_ENABLED="$2"
@@ -40,5 +41,8 @@ if [[ "${_OAUTH2_ENABLED}" == "true" ]]; then
     $HAL_COMMAND config security authn oauth2 enable
 fi
 
+# Make a 'cat' copy of the  file to ensure we are not copying link (created by halyard-additional-config configmap)
+cat /opt/halyard/additional/halyard-app-config.sh > /tmp/halyard-app-config.sh
+
 # Copy the app-config script to halyard container
-kubectl -n ${_SPINNAKER_NS} cp /opt/halyard/additional/halyard-app-config.sh $HALYARD_POD:/home/spinnaker/halyard-app-config.sh
+kubectl -n ${_SPINNAKER_NS} cp /tmp/halyard-app-config.sh $HALYARD_POD:/home/spinnaker/halyard-app-config.sh

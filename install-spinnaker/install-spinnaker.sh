@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+set +x
 set -eo pipefail
 
 # Process command line arguments
@@ -58,6 +59,7 @@ if [[ ! -z "$_OAUTH2_CLIENT_ID" && ! -z "$_OAUTH2_CLIENT_SECRET" ]]; then
 fi
 
 
+echo "Parameters"
 echo "_CD_PROJECT_ID: $_CD_PROJECT_ID"
 echo "_HELM_RELEASE_NAME: $_HELM_RELEASE_NAME"
 echo "_SPINNAKER_NS: $_SPINNAKER_NS"
@@ -65,6 +67,7 @@ echo "_OAUTH2_CLIENT_ID: $_OAUTH2_CLIENT_ID"
 echo "_OAUTH2_CLIENT_SECRET: $_OAUTH2_CLIENT_SECRET"
 echo "_OAUTH2_ENABLED: $_OAUTH2_ENABLED"
 echo "_UNINSTALL: $_UNINSTALL"
+echo
 
 # Done processing command line arguments
 
@@ -77,6 +80,7 @@ function tempFile() {
 }
 
 function uninstall() {
+  echo
   echo "Cleaning up previous installation"
   helm --debug delete --purge  ${_HELM_RELEASE_NAME} --timeout 180 || true
 
@@ -96,10 +100,13 @@ function uninstall() {
   while [[ ! -z "$(kubectl get namespace ${_SPINNAKER_NS}  -o=jsonpath='{.metadata.name}')" ]]; do
     sleep 3
   done
+  echo "Done deleting previous installation"
 }
 
 function createAdditinoalConfigMap() {
 
+  echo
+  echo "Creating configmap for halyard additional config"
 # Create the spinnaker namespace and additonal hal configmap configured in spinnaker helm chart
 
   local configmap_file=$(tempFile additional-config)
@@ -137,8 +144,6 @@ EOF_KUBECTL
     | yq r - 'data'  \
     | sed "s/^/  /" >> $configmap_file
 
-  cat $configmap_file
-
   # validate the config file
   kubeval $configmap_file
 
@@ -146,14 +151,18 @@ EOF_KUBECTL
 }
 
 function invokeHelm() {
+  echo
+  echo "Get Spinnaker GCS Key"
   # Encode spinnaker GCS Key for sed to inject them in values.yaml
   JSON_KEY="$(gsutil cat gs://${_CD_PROJECT_ID}-halyard-config/spinnaker-gcs-access-key.json)"
 
   # Replace the placeholders in values.yaml
   cat values.yaml | yq w - 'gcs.jsonKey' "$JSON_KEY" | yq w - 'dockerRegistries.[0].password' "$JSON_KEY" > values-updated.yaml
-  cat values-updated.yaml
 
   # Replace the placeholders in values.yaml
+  echo
+  echo "Helming now"
+  set -x
   helm --debug upgrade --install ${_HELM_RELEASE_NAME} stable/spinnaker \
     --timeout 1200 \
     --wait \
@@ -163,8 +172,6 @@ function invokeHelm() {
 }
 
 # Main logic starts here
-
-set -x
 
 if [[ "${_UNINSTALL}" != "true" ]]; then
   helm status ${_HELM_RELEASE_NAME} || true

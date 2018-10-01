@@ -15,24 +15,21 @@ steps:
   - 'bash'
   - '-c'
   - |
-    set -xeo pipefail
+    set +x
+    set -eo pipefail
 
     CLEAN_FLAG=""
     OAUTH_PARAM=""
     [[ "${_UNINSTALL}" == "true" ]] && CLEAN_FLAG="--clean" 
-    [[ "${_OAUTH2_ENABLED}" == "true" ]] && OAUTH_PARAM="--oauth2-client-id ${_OAUTH2_CLIENT_ID} --oauth2-client-secret ${_OAUTH2_CLIENT_SECRET}"
+    [[ "${_OAUTH2_ENABLED}" == "true" ]] && OAUTH_PARAM="--oauth2-client-id $$OAUTH2_CLIENT_ID --oauth2-client-secret $$OAUTH2_CLIENT_SECRET"
 
-    ./install-spinnaker.sh \
-      --project ${_CD_PROJECT_ID} \
-      --helm-release-name ${_HELM_RELEASE_NAME} \
-      --namespace ${_SPINNAKER_NS} \
-      $$OAUTH_PARAM \
-      $$CLEAN_FLAG
-
+    ./install-spinnaker.sh --project ${_CD_PROJECT_ID} --helm-release-name ${_HELM_RELEASE_NAME} --namespace ${_SPINNAKER_NS} $$OAUTH_PARAM $$CLEAN_FLAG
   env:
   - 'GCLOUD_PROJECT=${_CD_PROJECT_ID}'
   - 'CLOUDSDK_COMPUTE_REGION=${_CLOUDSDK_COMPUTE_REGION}'
   - 'CLOUDSDK_CONTAINER_CLUSTER=${_CLOUDSDK_CONTAINER_CLUSTER}'
+  - 'OAUTH2_CLIENT_ID=${_OAUTH2_CLIENT_ID}'
+  - 'OAUTH2_CLIENT_SECRET=${_OAUTH2_CLIENT_SECRET}'
   - 'TILLERLESS=true'
 timeout: 1800s
 tags: ['spinnaker']

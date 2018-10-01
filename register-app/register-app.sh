@@ -150,10 +150,21 @@ function createAppKubeConfigInExCluster() {
   local token="$(appClusterKubectl get secret "$secret" -o "jsonpath={.data.token}" | openssl enc -d -base64 -A)"
 
   local kubeconfig_file="$(tempFile kubeconfig)"
-  kubectl --kubeconfig $kubeconfig_file config set-credentials "$_APP_CLUSTER_SA_NAME" --token="$token" >/dev/null
-  kubectl --kubeconfig $kubeconfig_file config set-cluster "$cluster" --server="$server" --certificate-authority="$ca_crt" --embed-certs >/dev/null
-  kubectl --kubeconfig $kubeconfig_file config set-context "$context" --cluster="$cluster" --namespace="${_APP_NAMESPACE}" --user="${_APP_CLUSTER_SA_NAME}" >/dev/null
-  kubectl --kubeconfig $kubeconfig_file config use-context "$context" >/dev/null
+  kubectl --kubeconfig $kubeconfig_file config set-credentials "$_APP_CLUSTER_SA_NAME" --token="$token"
+  kubectl --kubeconfig $kubeconfig_file config set-cluster "$cluster" --server="$server" --certificate-authority="$ca_crt" --embed-certs
+
+  # Register all namespaces as context in spinnaker
+
+  if local namespace_list=$(appClusterKubectl get namespace -o=jsonpath='{.items[*].metadata.name}'); then
+    for namespace in $namespace_list; do
+      if [[ $namespace =~ kube ]]; then
+        echo "Skipping namespace '$namespace'"
+        continue
+      fi
+      kubectl --kubeconfig $kubeconfig_file config set-context "$namespace" --cluster="$cluster" --namespace="$namespace" --user="${_APP_CLUSTER_SA_NAME}"
+    done
+  fi
+  kubectl --kubeconfig $kubeconfig_file config use-context "default"
 
   kubectl --kubeconfig $kubeconfig_file cluster-info > /dev/null
 
@@ -161,7 +172,7 @@ function createAppKubeConfigInExCluster() {
   local ex_secret_file=$(tempFile ex-kubeconfig)
 
   echo
-  echo  "Creating kubeconfig secret $sec_name in $_EX_CLUSTER cluster"
+  echo "About to create kubeconfig secret '$sec_name' in $_EX_CLUSTER cluster"
   exClusterKubectl create secret generic "$sec_name" \
     --from-file=kubeconfig="$kubeconfig_file" \
     --dry-run -o yaml \
@@ -193,7 +204,7 @@ function createDockerConfigSecretInExCluster() {
       local repo_list=$(appClusterKubectl get secret $dcSecret --output='jsonpath={.metadata.annotations.ex\.anz\.com/repositories}' | tr -s '[:blank:][:space:]' ',,')
       local password_file=$(tempFile ${dcSecret}.passwd)
       appClusterKubectl get secret $dcSecret --output='jsonpath={.data.\.dockerconfigjson}' | base64 --decode | jq -Mr '.auths | to_entries[] | .value.password' > $password_file
-      local sec_name=$(echo "${_APP_CLUSTER}-dc-${dcSecret}" | tr -s '[:punct:]' '-')
+      local sec_name=$(echo "${_APP_CLUSTER}-${dcSecret}" | tr -s '[:punct:]' '-')
 
       echo
       echo "About to create dockerconfigjson secret '$sec_name' in $_EX_CLUSTER cluster"

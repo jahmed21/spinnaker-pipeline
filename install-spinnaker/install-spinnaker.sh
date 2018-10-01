@@ -63,8 +63,6 @@ echo "Parameters"
 echo "_CD_PROJECT_ID: $_CD_PROJECT_ID"
 echo "_HELM_RELEASE_NAME: $_HELM_RELEASE_NAME"
 echo "_SPINNAKER_NS: $_SPINNAKER_NS"
-echo "_OAUTH2_CLIENT_ID: $_OAUTH2_CLIENT_ID"
-echo "_OAUTH2_CLIENT_SECRET: $_OAUTH2_CLIENT_SECRET"
 echo "_OAUTH2_ENABLED: $_OAUTH2_ENABLED"
 echo "_UNINSTALL: $_UNINSTALL"
 echo
@@ -157,7 +155,10 @@ function invokeHelm() {
   JSON_KEY="$(gsutil cat gs://${_CD_PROJECT_ID}-halyard-config/spinnaker-gcs-access-key.json)"
 
   # Replace the placeholders in values.yaml
-  cat values.yaml | yq w - 'gcs.jsonKey' "$JSON_KEY" | yq w - 'dockerRegistries.[0].password' "$JSON_KEY" > values-updated.yaml
+  #   | yq w - 'dockerRegistries.[0].password' "$JSON_KEY" \
+  cat values.yaml \
+     | yq w - 'gcs.jsonKey' "$JSON_KEY" \
+     > values-updated.yaml
 
   # Replace the placeholders in values.yaml
   echo

@@ -5,12 +5,11 @@
 
 set -eo pipefail
 
-# Create a temp directory for all files generated during this execution
-MYTMPDIR=$(mktemp -d /tmp/hal.XXXX)
-trap "rm -vrf $MYTMPDIR" EXIT
 
-function tempFile() {
-  mktemp ${MYTMPDIR}/${1}.XXXXX
+function configFile() {
+  mkdir -p /home/spinnaker/.hal/app-config
+  #mktemp /home/spinnaker/.hal/app-config/${1}.XXXXX
+  echo /home/spinnaker/.hal/app-config/${1}
 }
 
 function echoAndExec() {
@@ -52,7 +51,7 @@ function configureDockerRegistryAccount() {
     repo_param="--repositories $repositories"
   fi
 
-  local passwordFile=$(tempFile ${configName}.password)
+  local passwordFile=$(configFile ${configName}.password)
   getDataFromSecret $configName "password" | tr -d '\n' > $passwordFile
 
   echoAndExec hal config provider docker-registry account \
@@ -83,18 +82,22 @@ function configureKubernetesAccount() {
     reg_param="--docker-registries $registries"
   fi
 
-  local kubeconfigFile=$(tempFile ${configName}.kubeconfig)
+  local kubeconfigFile=$(configFile ${appClusterName}.kubeconfig)
   getDataFromSecret $configName "kubeconfig" > $kubeconfigFile
-  local context="$(kubectl --kubeconfig $kubeconfigFile config current-context)"
-  local account_name="$(echo "$context" | tr -s '[:punct:]' '-')"
 
-  echoAndExec hal config provider kubernetes account \
-            $(getCommandForAccount kubernetes "$account_name") \
-            "$account_name" \
-            --context "$context" \
-            --kubeconfig-file $kubeconfigFile \
-            --omit-namespaces=kube-system,kube-public \
-            --provider-version v2 $reg_param
+  if local context_list=$(kubectl --kubeconfig $kubeconfigFile config get-contexts -o=name); then
+    for context in $context_list; do
+      local account_name="$(echo "${appClusterName}-${context}" | tr -s '[:punct:]' '-')"
+      echo "Creating kubernetes account '$account_name'"
+      echoAndExec hal config provider kubernetes account \
+                $(getCommandForAccount kubernetes "$account_name") \
+                "$account_name" \
+                --context "$context" \
+                --kubeconfig-file $kubeconfigFile \
+                --omit-namespaces=kube-system,kube-public \
+                --provider-version v2 $reg_param
+    done
+  fi
 }
 
 function processKubernetesAccounts() {

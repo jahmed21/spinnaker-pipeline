@@ -64,7 +64,7 @@ function configureDockerRegistryAccount() {
 }
 
 function processDockerRegistryAccounts() {
-  if local secretList=$(kubectl get secret -l type=dockerconfigjson -o=jsonpath='{.items[*].metadata.name}'); then
+  if local secretList=$(kubectl get secret --selector paas.ex.anz.com/type=dockerconfigjson -o=jsonpath='{.items[*].metadata.name}'); then
     for aSecret in $secretList; do
       echo "Processing docker-registry account '$aSecret'"
       configureDockerRegistryAccount $aSecret
@@ -76,7 +76,8 @@ function configureKubernetesAccount() {
   local configName=$1
 
   local appClusterName=$(getLabelFromSecret $configName "app-cluster")
-  local registries=$(kubectl get secret -l type=dockerconfigjson,app-cluster=$appClusterName -o=jsonpath='{.items[*].metadata.name}' | tr -s '[:blank:][:space:]' ',,')
+  local registries=$(kubectl get secret --selector paas.ex.anz.com/type=dockerconfigjson,paas.ex.anz.com/app-cluster=$appClusterName -o=jsonpath='{.items[*].metadata.name}' \
+                        | tr -s '[:blank:][:space:]' ',,')
   local reg_param=""
   if [[ ! -z "$registries" ]]; then
     reg_param="--docker-registries $registries"
@@ -101,7 +102,7 @@ function configureKubernetesAccount() {
 }
 
 function processKubernetesAccounts() {
-  if local secretList=$(kubectl get secret -l type=kubeconfig -o=jsonpath='{.items[*].metadata.name}'); then
+  if local secretList=$(kubectl get secret --selector paas.ex.anz.com/type=kubeconfig -o=jsonpath='{.items[*].metadata.name}'); then
     for aSecret in $secretList; do
       echo "Processing kubernetes account '$aSecret'"
       configureKubernetesAccount $aSecret

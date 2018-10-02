@@ -97,14 +97,14 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   labels:
-    ex-cluster: ${_EX_CLUSTER}
+    paas.ex.anz.com/cluster: ${_EX_CLUSTER}
   name: ${_APP_CLUSTER_SA_NAME}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   labels:
-    ex-cluster: ${_EX_CLUSTER}
+    paas.ex.anz.com/cluster: ${_EX_CLUSTER}
   name: ${_APP_CLUSTER_SA_NAME}-crb
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -178,6 +178,8 @@ function createAppKubeConfigInExCluster() {
     --dry-run -o yaml \
     | yq w - 'metadata.labels.app-cluster' "$_APP_CLUSTER" \
     | yq w - 'metadata.labels.type' "kubeconfig" \
+    | yq w - 'metadata.labels.[paas.ex.anz.com/app-cluster]' "$_APP_CLUSTER" \
+    | yq w - 'metadata.labels.[paas.ex.anz.com/type]' "kubeconfig" \
     > $ex_secret_file
 
   # validate the config file
@@ -189,7 +191,7 @@ function createAppKubeConfigInExCluster() {
 function getDockerConfigSecretNameFromAppCluster() {
   appClusterKubectl get secret \
       --field-selector type=kubernetes.io/dockerconfigjson \
-      -l ex-cluster=$_EX_CLUSTER \
+      --selector paas.ex.anz.com/cluster=$_EX_CLUSTER \
       -o=jsonpath='{.items[*].metadata.name}'
 }
 
@@ -218,6 +220,9 @@ function createDockerConfigSecretInExCluster() {
         | yq w - 'metadata.labels.app-cluster' "$_APP_CLUSTER" \
         | yq w - 'metadata.labels.secret' "$dcSecret" \
         | yq w - 'metadata.labels.type' "dockerconfigjson" \
+        | yq w - 'metadata.labels.[paas.ex.anz.com/app-cluster]' "$_APP_CLUSTER" \
+        | yq w - 'metadata.labels.[paas.ex.anz.com/type]' "dockerconfigjson" \
+        | yq w - 'metadata.labels.[paas.ex.anz.com/secret-name]' "$dcSecret" \
         > $ex_secret_file
 
       # validate the config file

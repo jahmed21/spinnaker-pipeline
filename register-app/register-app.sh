@@ -203,7 +203,7 @@ function createDockerConfigSecretInExCluster() {
     do
       local docker_server=$(appClusterKubectl get secret $dcSecret --output='jsonpath={.data.\.dockerconfigjson}' | base64 --decode | jq -Mr '.auths | to_entries[] | .key')
       local email=$(appClusterKubectl get secret $dcSecret --output='jsonpath={.data.\.dockerconfigjson}' | base64 --decode | jq -Mr '.auths | to_entries[] | .value.email')
-      local repo_list=$(appClusterKubectl get secret $dcSecret --output='jsonpath={.metadata.annotations.ex\.anz\.com/repositories}' | tr -s '[:blank:][:space:]' ',,')
+      local repo_list=$(appClusterKubectl get secret $dcSecret --output='jsonpath={.metadata.annotations.paas\.ex\.anz\.com/repositories}' | tr -s '[:blank:][:space:]' ',,')
       local password_file=$(tempFile ${dcSecret}.passwd)
       appClusterKubectl get secret $dcSecret --output='jsonpath={.data.\.dockerconfigjson}' | base64 --decode | jq -Mr '.auths | to_entries[] | .value.password' > $password_file
       local sec_name=$(echo "${_APP_CLUSTER}-${dcSecret}" | tr -s '[:punct:]' '-')

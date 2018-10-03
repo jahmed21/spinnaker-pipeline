@@ -12,5 +12,5 @@ kubectl --namespace kube-system label secret reg2 paas.ex.anz.com/cluster=ea-cd-
 kubectl create namespace staging || true
 kubectl create namespace testing || true
 kubectl create namespace prod || true
-kubectl --namespace kube-system get secret -l ex\.anz\.com/cluster=ea-cd-gke
+kubectl --namespace kube-system get secret -l paas\.ex\.anz\.com/cluster=ea-cd-gke
 kubectl config use-context gke_ea-paas_australia-southeast1_ea-cd-gke

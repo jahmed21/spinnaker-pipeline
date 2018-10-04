@@ -6,8 +6,15 @@ set -eo pipefail
 function usage() {
 echo
 cat <<EOF
-usage $(basename $0) -espnr
-  --clean                  Uninstall previous helm installation first
+usage $(basename $0)
+  --ex-project    Project Id of the Spinnaker deployment project
+  --ex-cluster    Spinnaker GKE Cluster name
+  --ex-namespace  k8s namespace where spinnaker is deployed (default to 'spinnaker')
+  --app-project   Project Id of the Application to be integrated with Spinnaker
+  --app-cluster   Application GKE Cluster name
+  --sa-name       Name of the service account to be created in Application GKE for spinnaker to connect and deploy (default to 'ex-spinnaker')
+  --region        GCP Region (default to 'australia-southeast1')
+  --clean         Uninstall previous helm installation first
 EOF
 exit 1
 }

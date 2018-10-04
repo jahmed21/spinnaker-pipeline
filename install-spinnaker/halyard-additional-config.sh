@@ -9,6 +9,10 @@ _SPINNAKER_NS="$1"
 _OAUTH2_ENABLED="$2"
 _OAUTH2_CLIENT_ID="$3"
 _OAUTH2_CLIENT_SECRET="$4"
+_PUBSUB_ENABLED="$5"
+_PUBSUB_SUBSCRIPTION_NAME="$6"
+_PUBSUB_SA_JSON_GCS_URL="$7"
+_PROJECT_ID="$8"
 
 HALYARD_POD=$(kubectl -n ${_SPINNAKER_NS}  get po \
             -l component=halyard,statefulset.kubernetes.io/pod-name \
@@ -25,6 +29,10 @@ logging:
   level:
     com.netflix.spinnaker.gate.security: DEBUG
     com.netflix.spinnaker.clouddriver.docker: DEBUG
+    com.netflix.spinnaker.echo.pubsub: DEBUG
+    com.netflix.spinnaker.echo.controllers: DEBUG
+    com.netflix.spinnaker.echo.artifacts: DEBUG
+    com.netflix.spinnaker.echo.pipelinetriggers: DEBUG
 EOF_PROFILE
 "
 
@@ -39,6 +47,26 @@ if [[ "${_OAUTH2_ENABLED}" == "true" ]]; then
       --pre-established-redirect-uri http://localhost:8084/login
 
     $HAL_COMMAND config security authn oauth2 enable
+fi
+
+if [[ "${_PUBSUB_ENABLED}" == "true" ]]; then
+  JSON_KEY_PATH=/tmp/.pubsub.json
+  gsutil cp $_PUBSUB_SA_JSON_GCS_URL  $JSON_KEY_PATH
+
+  PUBSUB_NAME="spin-pipeline"
+  COMMAND_MODE="add"
+
+  if $HAL_COMMAND config pubsub google subscription get $PUBSUB_NAME 2>/dev/null; then
+    COMMAND_MODE="edit"
+  fi
+
+  $HAL_COMMAND config pubsub google subscription $COMMAND_MODE $PUBSUB_NAME \
+          --subscription-name $_PUBSUB_SUBSCRIPTION_NAME \
+          --json-path $JSON_KEY_PATH \
+          --project $_PROJECT_ID \
+          --message-format "GCS"
+
+  $HAL_COMMAND config pubsub google enable
 fi
 
 # Make a 'cat' copy of the  file to ensure we are not copying link (created by halyard-additional-config configmap)

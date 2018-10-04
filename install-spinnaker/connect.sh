@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-_prevPID="$(ps -eo "pid,command" | grep '[k]ubectl port-forward --namespace spinnaker' | cut -f1 -d ' ' )"
+set -xeo pipefail
+_prevPID="$(ps -eo "pid,command" | grep '[k]ubectl port-forward --namespace spinnaker' | sed "s/^\s*//" | cut -f1 -d ' ' )"
 if [ ! -z "$_prevPID" ]; then
   kill $_prevPID
 fi

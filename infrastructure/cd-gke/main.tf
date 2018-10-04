@@ -1,7 +1,7 @@
 locals {
-  project_id             = "ea-paas"
-  spinnaker_gcs_sa_name  = "spinnaker-gcs-sa"
-  spinnaker_gcs_key_name = "spinnaker-gcs-access-key.json"
+  project_id                = "cd-pipeline-1"
+  spinnaker_gcs_sa_name     = "spinnaker-gcs-sa"
+  spinnaker_gcs_key_name    = "spinnaker-gcs-access-key.json"
 }
 
 data "google_project" "this_projecct" {
@@ -24,8 +24,8 @@ module "cd-gke" {
   region                  = "${var.region}"
   project_id              = "${local.project_id}"
   cluster_service_account = "${format("%s-compute@developer.gserviceaccount.com", data.google_project.this_projecct.number)}"
-  node_instance_type      = "n1-standard-2"
-  max_node_count          = "2"
+  node_instance_type      = "n1-standard-4"
+  max_node_count          = "3"
   kubernetes_version      = "${data.google_container_engine_versions.gke_versions.latest_master_version}"
 }
 
@@ -85,14 +85,9 @@ resource "google_storage_bucket_iam_member" "cloudbuild-access-to-halyard-config
   member = "serviceAccount:${google_service_account.spinnaker_gcs.email}"
 }
 
-# Grant spinnaker service account objectviewer permission for GCR
-resource "google_storage_bucket_iam_member" "gcr_read_access" {
-  bucket = "asia.artifacts.${local.project_id}.appspot.com"
-  role   = "roles/storage.objectViewer"
-  member = "serviceAccount:${google_service_account.spinnaker_gcs.email}"
-}
-
-# TODO
-output "cluster_name" {
-  value = "${module.cd-gke.cluster_name}"
+# Allow Cloud Build service account create workload in the cluster and create ClusterRoleBinding
+resource "google_project_iam_member" "cloudbuild-access-to-pipeline-gke" {
+  project = "${local.project_id}"
+  role    = "roles/container.admin"
+  member  = "serviceAccount:${data.google_project.this_projecct.number}@cloudbuild.gserviceaccount.com"
 }

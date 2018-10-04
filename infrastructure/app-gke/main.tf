@@ -1,5 +1,5 @@
 locals {
-  project_id = "ea-paas"
+  project_id = "app-service-12"
 }
 
 data "google_project" "this_projecct" {

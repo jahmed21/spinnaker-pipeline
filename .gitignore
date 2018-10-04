@@ -15,3 +15,5 @@ terraform.plan
 
 # vi
 .*.swp
+
+*.json

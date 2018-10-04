@@ -7,18 +7,21 @@ set -eo pipefail
 function usage() {
 echo
 cat <<EOF
-usage $(basename $0) -prnisc
-  -p | --project                Project Id of the Spinnaker deployment project
-  -r | --helm-relase-name       Helm relase name
-  -n | --namespace              Kubernetes namespace where spinnaker will be deployed
-  -i | --oauth2-client-id       Google OAUTH2 client id
-  -s | --oauth2-client-secret   Google OAUTH2 client secret
-  -c | --clean                  Uninstall previous helm installation first
+usage $(basename $0)
+  --project                   Project Id of the Spinnaker deployment project
+  --helm-relase-name          Helm relase name
+  --namespace                 Kubernetes namespace where spinnaker will be deployed
+  --oauth2-client-id          Google OAUTH2 client id
+  --oauth2-client-secret      Google OAUTH2 client secret
+  --pubsub-subscription       Name of the pubsub subscription to be used by spinnaker
+  --pubsub-sa-jsonkey-gcs-url GCS URL where pubsub service account json key is stored
+  --clean                     Uninstall previous helm installation first
 EOF
 exit 1
 }
 
-TEMP=$(getopt -o p:r:n:i:s:c --long project:,helm-release-name:,namespace:,oauth2-client-id:,oauth2-client-secret:,clean -n 'example.bash' -- "$@")
+TEMP=$(getopt -o h --long project:,helm-release-name:,namespace:,oauth2-client-id:,oauth2-client-secret:,pubsub-subscription:,pubsub-sa-jsonkey-gcs-url:,clean \
+              -n 'install-spinnaker.sh' -- "$@")
 if [ $? != 0 ] ; then 
    echo "Terminating..." >&2 
    exit 2
@@ -34,15 +37,20 @@ _OAUTH2_CLIENT_ID=""
 _OAUTH2_CLIENT_SECRET=""
 _OAUTH2_ENABLED=false
 _UNINSTALL=false
+_PUBSUB_ENABLED=false
+_PUBSUB_SUBSCRIPTION_NAME=""
+_PUBSUB_SA_JSON_GCS_URL=""
 
 while true ; do
 	case "$1" in
-    -p|--project) _CD_PROJECT_ID=$2; shift 2;;
-    -r|--helm-release-name) _HELM_RELEASE_NAME=$2; shift 2;;
-    -n|--namespace) _SPINNAKER_NS=$2; shift 2;;
-    -i|--oauth2-client-id) _OAUTH2_CLIENT_ID=$2; shift 2;;
-    -s|--oauth2-client-secret) _OAUTH2_CLIENT_SECRET=$2; shift 2;;
-    -c|--clean) _UNINSTALL=true; shift ;;
+    --project) _CD_PROJECT_ID=$2; shift 2;;
+    --helm-release-name) _HELM_RELEASE_NAME=$2; shift 2;;
+    --namespace) _SPINNAKER_NS=$2; shift 2;;
+    --oauth2-client-id) _OAUTH2_CLIENT_ID=$2; shift 2;;
+    --oauth2-client-secret) _OAUTH2_CLIENT_SECRET=$2; shift 2;;
+    --pubsub-subscription) _PUBSUB_SUBSCRIPTION_NAME=$2; shift 2;;
+    --pubsub-sa-jsonkey-gcs-url) _PUBSUB_SA_JSON_GCS_URL=$2; shift 2;;
+    --clean) _UNINSTALL=true; shift ;;
 	  --) shift ; break ;;
 	  *) echo "Internal error!" ; usage ;;
 	esac
@@ -57,6 +65,9 @@ fi
 if [[ ! -z "$_OAUTH2_CLIENT_ID" && ! -z "$_OAUTH2_CLIENT_SECRET" ]]; then
   _OAUTH2_ENABLED=true
 fi
+if [[ ! -z "$_PUBSUB_SA_JSON_GCS_URL" && ! -z "$_PUBSUB_SUBSCRIPTION_NAME" ]]; then
+  _PUBSUB_ENABLED=true
+fi
 
 
 echo "Parameters"
@@ -64,6 +75,9 @@ echo "_CD_PROJECT_ID: $_CD_PROJECT_ID"
 echo "_HELM_RELEASE_NAME: $_HELM_RELEASE_NAME"
 echo "_SPINNAKER_NS: $_SPINNAKER_NS"
 echo "_OAUTH2_ENABLED: $_OAUTH2_ENABLED"
+echo "_PUBSUB_ENABLED: $_PUBSUB_ENABLED"
+echo "_PUBSUB_SUBSCRIPTION_NAME: $_PUBSUB_SUBSCRIPTION_NAME"
+echo "_PUBSUB_SA_JSON_GCS_URL: $_PUBSUB_SA_JSON_GCS_URL"
 echo "_UNINSTALL: $_UNINSTALL"
 echo
 
@@ -129,7 +143,14 @@ data:
   config.sh: |
 
     bash /opt/halyard/additional/halyard-additional-config.sh \
-      "${_SPINNAKER_NS}" "${_OAUTH2_ENABLED}" "${_OAUTH2_CLIENT_ID}" "${_OAUTH2_CLIENT_SECRET}"
+      "${_SPINNAKER_NS}" \
+      "${_OAUTH2_ENABLED}" \
+      "${_OAUTH2_CLIENT_ID}" \
+      "${_OAUTH2_CLIENT_SECRET}" \
+      "${_PUBSUB_ENABLED}" \
+      "${_PUBSUB_SUBSCRIPTION_NAME}" \
+      "${_PUBSUB_SA_JSON_GCS_URL}" \
+      "${_CD_PROJECT_ID}"
 EOF_KUBECTL
 
   # Add halyard-additional-config script to configmap

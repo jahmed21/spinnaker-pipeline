@@ -1,7 +1,6 @@
 substitutions:
   _WORKING_DIR: .
   _UNINSTALL: 'false'
-  _SPINNAKER_NS: spinnaker
   _HELM_RELEASE_NAME: ea-cd-spin
   _HELM_VERSION: v2.11.0
   _CD_PROJECT_ID: cd-pipeline-1
@@ -10,7 +9,6 @@ substitutions:
   _OAUTH2_ENABLED: 'true'
   _PUBSUB_ENABLED: 'true'
   _PUBSUB_SUBSCRIPTION_NAME: 'spin-pipeline'
-  _PUBSUB_SA_JSON_KEY_NAME: 'spinnaker-pubsub-access-key.json'
 steps:
 - name: asia.gcr.io/$PROJECT_ID/cloud-builders-community-helm:${_HELM_VERSION}
   dir: ${_WORKING_DIR}
@@ -27,12 +25,11 @@ steps:
     [[ "${_OAUTH2_ENABLED}" == "true" ]] && \
       OTHER_PARAM="--oauth2-client-id $$OAUTH2_CLIENT_ID --oauth2-client-secret $$OAUTH2_CLIENT_SECRET"
     [[ "${_PUBSUB_ENABLED}" == "true" ]] && \
-      OTHER_PARAM="$$OTHER_PARAM --pubsub-subscription ${_PUBSUB_SUBSCRIPTION_NAME} --pubsub-sa-jsonkey-gcs-url gs://${_CD_PROJECT_ID}-halyard-config/${_PUBSUB_SA_JSON_KEY_NAME}"
+      OTHER_PARAM="$$OTHER_PARAM --pubsub-subscription ${_PUBSUB_SUBSCRIPTION_NAME}"
 
     ./install-spinnaker.sh \
         --project ${_CD_PROJECT_ID} \
         --helm-release-name ${_HELM_RELEASE_NAME} \
-        --namespace ${_SPINNAKER_NS} \
         $$OTHER_PARAM $$CLEAN_FLAG
   env:
   - 'GCLOUD_PROJECT=${_CD_PROJECT_ID}'

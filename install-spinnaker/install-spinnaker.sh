@@ -14,7 +14,6 @@ usage $(basename $0)
   --oauth2-client-id          Google OAUTH2 client id
   --oauth2-client-secret      Google OAUTH2 client secret
   --pubsub-subscription       Name of the pubsub subscription to be used by spinnaker
-  --pubsub-sa-jsonkey-gcs-url GCS URL where pubsub service account json key is stored
   --clean                     Uninstall previous helm installation first
 EOF
 exit 1
@@ -32,14 +31,13 @@ eval set -- "$TEMP"
 
 _CD_PROJECT_ID=""
 _HELM_RELEASE_NAME=""
-_SPINNAKER_NS=""
+_SPINNAKER_NS="spinnaker"
 _OAUTH2_CLIENT_ID=""
 _OAUTH2_CLIENT_SECRET=""
 _OAUTH2_ENABLED=false
 _UNINSTALL=false
 _PUBSUB_ENABLED=false
 _PUBSUB_SUBSCRIPTION_NAME=""
-_PUBSUB_SA_JSON_GCS_URL=""
 
 while true ; do
 	case "$1" in
@@ -49,7 +47,6 @@ while true ; do
     --oauth2-client-id) _OAUTH2_CLIENT_ID=$2; shift 2;;
     --oauth2-client-secret) _OAUTH2_CLIENT_SECRET=$2; shift 2;;
     --pubsub-subscription) _PUBSUB_SUBSCRIPTION_NAME=$2; shift 2;;
-    --pubsub-sa-jsonkey-gcs-url) _PUBSUB_SA_JSON_GCS_URL=$2; shift 2;;
     --clean) _UNINSTALL=true; shift ;;
 	  --) shift ; break ;;
 	  *) echo "Internal error!" ; usage ;;
@@ -61,11 +58,11 @@ if [[ ! -z "$*" || -z "$_CD_PROJECT_ID" ]]; then
 fi
 
 [[ -z "$_HELM_RELEASE_NAME" ]] && _HELM_RELEASE_NAME="${_CD_PROJECT_ID}-spin"
-[[ -z "$_SPINNAKER_NS" ]] && _SPINNAKER_NS="spinnaker"
+
 if [[ ! -z "$_OAUTH2_CLIENT_ID" && ! -z "$_OAUTH2_CLIENT_SECRET" ]]; then
   _OAUTH2_ENABLED=true
 fi
-if [[ ! -z "$_PUBSUB_SA_JSON_GCS_URL" && ! -z "$_PUBSUB_SUBSCRIPTION_NAME" ]]; then
+if [[ ! -z "$_PUBSUB_SUBSCRIPTION_NAME" ]]; then
   _PUBSUB_ENABLED=true
 fi
 
@@ -77,7 +74,6 @@ echo "_SPINNAKER_NS: $_SPINNAKER_NS"
 echo "_OAUTH2_ENABLED: $_OAUTH2_ENABLED"
 echo "_PUBSUB_ENABLED: $_PUBSUB_ENABLED"
 echo "_PUBSUB_SUBSCRIPTION_NAME: $_PUBSUB_SUBSCRIPTION_NAME"
-echo "_PUBSUB_SA_JSON_GCS_URL: $_PUBSUB_SA_JSON_GCS_URL"
 echo "_UNINSTALL: $_UNINSTALL"
 echo
 
@@ -94,22 +90,22 @@ function tempFile() {
 function uninstall() {
   echo
   echo "Cleaning up previous installation"
-  helm --debug delete --purge  ${_HELM_RELEASE_NAME} --timeout 180 || true
-
-  # delete jobs, pods, statefulsets, configmaps, secrets...etc
-  kubectl --namespace ${_SPINNAKER_NS} --timeout 180s delete all --all || true
-  
-  # now delete the entire namesapce
-  kubectl delete namespace ${_SPINNAKER_NS} --timeout 180s || true
+  helm --debug delete --purge  ${_HELM_RELEASE_NAME} --timeout 300 || true
 
   # now delete the CRB
-  kubectl delete clusterrolebinding  "${_HELM_RELEASE_NAME}-spinnaker-spinnaker" || true
+  kubectl delete clusterrolebinding -l release="${_HELM_RELEASE_NAME}" || true
+
+  # now delete the release objects
+  kubectl --namespace ${_SPINNAKER_NS} delete all -l release="${_HELM_RELEASE_NAME}" || true
+
+  # now delete the running jobs,pods
+  kubectl --namespace ${_SPINNAKER_NS} delete job,pod --all || true
 
   # now delete the tillerless storage
   kubectl --namespace kube-system delete secret "${_HELM_RELEASE_NAME}.v1" || true
 
   # wait till spinnaker namespace removed
-  while [[ ! -z "$(kubectl get namespace ${_SPINNAKER_NS}  -o=jsonpath='{.metadata.name}')" ]]; do
+  while [[ ! -z "$(kubectl --namespace ${_SPINNAKER_NS} get po -o=jsonpath='{.items[*].metadata.name}')" ]]; do
     sleep 3
   done
   echo "Done deleting previous installation"
@@ -124,14 +120,6 @@ function createAdditinoalConfigMap() {
   local configmap_file=$(tempFile additional-config)
   cat <<EOF_KUBECTL > $configmap_file
 apiVersion: v1
-kind: Namespace
-metadata:
-  name: ${_SPINNAKER_NS}
-spec:
-  finalizers:
-  - kubernetes
----
-apiVersion: v1
 kind: ConfigMap
 metadata:
   labels:
@@ -143,14 +131,13 @@ data:
   config.sh: |
 
     bash /opt/halyard/additional/halyard-additional-config.sh \
+      "${_CD_PROJECT_ID}" \
       "${_SPINNAKER_NS}" \
       "${_OAUTH2_ENABLED}" \
       "${_OAUTH2_CLIENT_ID}" \
       "${_OAUTH2_CLIENT_SECRET}" \
       "${_PUBSUB_ENABLED}" \
-      "${_PUBSUB_SUBSCRIPTION_NAME}" \
-      "${_PUBSUB_SA_JSON_GCS_URL}" \
-      "${_CD_PROJECT_ID}"
+      "${_PUBSUB_SUBSCRIPTION_NAME}"
 EOF_KUBECTL
 
   # Add halyard-additional-config script to configmap
@@ -170,17 +157,6 @@ EOF_KUBECTL
 }
 
 function invokeHelm() {
-  echo
-  echo "Get Spinnaker GCS Key"
-  # Encode spinnaker GCS Key for sed to inject them in values.yaml
-  JSON_KEY="$(gsutil cat gs://${_CD_PROJECT_ID}-halyard-config/spinnaker-gcs-access-key.json)"
-
-  # Replace the placeholders in values.yaml
-  #   | yq w - 'dockerRegistries.[0].password' "$JSON_KEY" \
-  cat values.yaml \
-     | yq w - 'gcs.jsonKey' "$JSON_KEY" \
-     > values-updated.yaml
-
   # Replace the placeholders in values.yaml
   echo
   echo "Helming now"
@@ -189,17 +165,16 @@ function invokeHelm() {
     --timeout 1200 \
     --wait \
     --namespace ${_SPINNAKER_NS} \
-    --values values-updated.yaml \
-    --set gcs.project=${_CD_PROJECT_ID},gcs.bucket=${_CD_PROJECT_ID}-spinnaker-config
+    --values values.yaml
 }
 
 # Main logic starts here
 
 if [[ "${_UNINSTALL}" != "true" ]]; then
-  helm status ${_HELM_RELEASE_NAME} || true
+  helm status ${_HELM_RELEASE_NAME} 2> /dev/null || true
 fi
 
-if [[ "${_UNINSTALL}" == "true" || ! -z "$(helm status ${_HELM_RELEASE_NAME} | grep 'STATUS: \(FAILED\|PENDING\)' )" ]]; then
+if [[ "${_UNINSTALL}" == "true" || ! -z "$(helm status ${_HELM_RELEASE_NAME} 2> /dev/null | grep 'STATUS: \(FAILED\|PENDING\)' )" ]]; then
   uninstall
 fi
 

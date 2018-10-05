@@ -90,7 +90,7 @@ minio:
   enabled: false
 
 gcs:
-  enabled: true
+  enabled: false
   project: ""
   bucket: ""
   jsonKey: ''

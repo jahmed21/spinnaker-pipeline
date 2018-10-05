@@ -19,13 +19,13 @@ function echoAndExec() {
 
 function getDataFromSecret() {
   local secretName=$1
-  local key=$2
+  local key=$(echo "$2" | sed 's/\./\\./g')
   kubectl get secret $secretName -o=jsonpath="{.data.${key}}" | base64 --decode
 }
 
 function getLabelFromSecret() {
   local secretName=$1
-  local key=$2
+  local key=$(echo "$2" | sed 's/\./\\./g')
   kubectl get secret $secretName -o=jsonpath="{.metadata.labels.${key}}"
 }
 
@@ -75,20 +75,21 @@ function processDockerRegistryAccounts() {
 function configureKubernetesAccount() {
   local configName=$1
 
-  local appClusterName=$(getLabelFromSecret $configName "app-cluster")
-  local registries=$(kubectl get secret --selector paas.ex.anz.com/type=dockerconfigjson,paas.ex.anz.com/app-cluster=$appClusterName -o=jsonpath='{.items[*].metadata.name}' \
+  local appClusterName=$(getLabelFromSecret $configName "paas.ex.anz.com/cluster")
+  local appProjectId=$(getLabelFromSecret $configName "paas.ex.anz.com/project")
+  local registries=$(kubectl get secret --selector paas.ex.anz.com/type=dockerconfigjson,paas.ex.anz.com/cluster=$appClusterName -o=jsonpath='{.items[*].metadata.name}' \
                         | tr -s '[:blank:][:space:]' ',,')
   local reg_param=""
   if [[ ! -z "$registries" ]]; then
     reg_param="--docker-registries $registries"
   fi
 
-  local kubeconfigFile=$(configFile ${appClusterName}.kubeconfig)
+  local kubeconfigFile=$(configFile ${appProjectId}-${appClusterName}.kubeconfig)
   getDataFromSecret $configName "kubeconfig" > $kubeconfigFile
 
   if local context_list=$(kubectl --kubeconfig $kubeconfigFile config get-contexts -o=name); then
     for context in $context_list; do
-      local account_name="$(echo "${appClusterName}-${context}" | tr -s '[:punct:]' '-')"
+      local account_name="$(echo "${appProjectId}-${appClusterName}-${context}" | tr -s '[:punct:]' '-')"
       echo "Creating kubernetes account '$account_name'"
       echoAndExec hal config provider kubernetes account \
                 $(getCommandForAccount kubernetes "$account_name") \

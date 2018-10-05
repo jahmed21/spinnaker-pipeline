@@ -10,11 +10,14 @@ variable "pipeline_topic" {
   default = "ea-spin-topic"
 }
 
+variable "pipeline_gke_cluster" {
+  default = "ea-cd-gke"
+}
+
 locals {
   bucket_name    = "pipeline-integration-${local.project_id}"
   pub_topic_name = "projects/${var.pipeline_project_id}/topics/${var.pipeline_topic}"
   gcr_sa_name    = "gcr-sa"
-  gcr_key_name   = "gcr-sa-key.json"
 }
 
 # Bucket to store application config files (deployment manifest, pipeline config files..etc)
@@ -33,15 +36,6 @@ resource "google_storage_notification" "pipeline_bucket_notification" {
   topic          = "${local.pub_topic_name}"
 }
 
-# Bucket to store confidentials GCR SA
-resource "google_storage_bucket" "config" {
-  project       = "${local.project_id}"
-  name          = "${local.project_id}-config"
-  location      = "${var.region}"
-  storage_class = "REGIONAL"
-  force_destroy = "true"
-}
-
 # Create a service account  to access GCR of app project
 resource "google_service_account" "gcr_sa" {
   project      = "${local.project_id}"
@@ -52,14 +46,6 @@ resource "google_service_account" "gcr_sa" {
 # Create service account key
 resource "google_service_account_key" "gcr_sa_key" {
   service_account_id = "${google_service_account.gcr_sa.name}"
-}
-
-# Store service account key as bucket object
-resource "google_storage_bucket_object" "gcr_sa_key" {
-  name         = "${local.gcr_key_name}"
-  content      = "${base64decode(google_service_account_key.gcr_sa_key.private_key)}"
-  bucket       = "${google_storage_bucket.config.name}"
-  content_type = "application/json"
 }
 
 # Grant read permission for the service acccount

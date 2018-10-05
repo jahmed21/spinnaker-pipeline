@@ -6,6 +6,7 @@ kubectl --namespace kube-system delete secret reg1 || true
 kubectl --namespace kube-system create secret docker-registry reg1 --docker-server="https://asia.gcr.io" --docker-username="_json_key" --docker-password="$(cat key.json)" --docker-email=reg1@anz.com 
 kubectl --namespace kube-system annotate secret reg1 paas.ex.anz.com/repositories=app-service-12/sample-sb
 kubectl --namespace kube-system label secret reg1 paas.ex.anz.com/cluster=ea-cd-gke
+kubectl --namespace kube-system label secret reg1 paas.ex.anz.com/project=cd-pipeline-1
 kubectl create namespace staging || true
 kubectl create namespace testing || true
 kubectl create namespace prod || true

@@ -105,6 +105,7 @@ kind: ServiceAccount
 metadata:
   labels:
     paas.ex.anz.com/cluster: ${_EX_CLUSTER}
+    paas.ex.anz.com/project: ${_EX_PROJECT_ID}
   name: ${_APP_CLUSTER_SA_NAME}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -112,6 +113,7 @@ kind: ClusterRoleBinding
 metadata:
   labels:
     paas.ex.anz.com/cluster: ${_EX_CLUSTER}
+    paas.ex.anz.com/project: ${_EX_PROJECT_ID}
   name: ${_APP_CLUSTER_SA_NAME}-crb
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -175,7 +177,7 @@ function createAppKubeConfigInExCluster() {
 
   kubectl --kubeconfig $kubeconfig_file cluster-info > /dev/null
 
-  local sec_name=$(echo "${_APP_CLUSTER}-kubeconfig" | tr -s '[:punct:]' '-')
+  local sec_name=$(echo "${_APP_PROJECT_ID}-${_APP_CLUSTER}-kubeconfig" | tr -s '[:punct:]' '-')
   local ex_secret_file=$(tempFile ex-kubeconfig)
 
   echo
@@ -183,9 +185,8 @@ function createAppKubeConfigInExCluster() {
   exClusterKubectl create secret generic "$sec_name" \
     --from-file=kubeconfig="$kubeconfig_file" \
     --dry-run -o yaml \
-    | yq w - 'metadata.labels.app-cluster' "$_APP_CLUSTER" \
-    | yq w - 'metadata.labels.type' "kubeconfig" \
-    | yq w - 'metadata.labels.[paas.ex.anz.com/app-cluster]' "$_APP_CLUSTER" \
+    | yq w - 'metadata.labels.[paas.ex.anz.com/cluster]' "$_APP_CLUSTER" \
+    | yq w - 'metadata.labels.[paas.ex.anz.com/project]' "$_APP_PROJECT_ID" \
     | yq w - 'metadata.labels.[paas.ex.anz.com/type]' "kubeconfig" \
     > $ex_secret_file
 
@@ -213,7 +214,7 @@ function createDockerConfigSecretInExCluster() {
       local repo_list=$(appClusterKubectl get secret $dcSecret --output='jsonpath={.metadata.annotations.paas\.ex\.anz\.com/repositories}' | tr -s '[:blank:][:space:]' ',,')
       local password_file=$(tempFile ${dcSecret}.passwd)
       appClusterKubectl get secret $dcSecret --output='jsonpath={.data.\.dockerconfigjson}' | base64 --decode | jq -Mr '.auths | to_entries[] | .value.password' > $password_file
-      local sec_name=$(echo "${_APP_CLUSTER}-${dcSecret}" | tr -s '[:punct:]' '-')
+      local sec_name=$(echo "${_APP_PROJECT_ID}-${_APP_CLUSTER}-${dcSecret}" | tr -s '[:punct:]' '-')
 
       echo
       echo "About to create dockerconfigjson secret '$sec_name' in $_EX_CLUSTER cluster"
@@ -224,10 +225,8 @@ function createDockerConfigSecretInExCluster() {
         --from-literal=email="$email" \
         --from-literal=repositories="$repo_list" \
         --dry-run -o yaml \
-        | yq w - 'metadata.labels.app-cluster' "$_APP_CLUSTER" \
-        | yq w - 'metadata.labels.secret' "$dcSecret" \
-        | yq w - 'metadata.labels.type' "dockerconfigjson" \
-        | yq w - 'metadata.labels.[paas.ex.anz.com/app-cluster]' "$_APP_CLUSTER" \
+        | yq w - 'metadata.labels.[paas.ex.anz.com/cluster]' "$_APP_CLUSTER" \
+        | yq w - 'metadata.labels.[paas.ex.anz.com/project]' "$_APP_PROJECT_ID" \
         | yq w - 'metadata.labels.[paas.ex.anz.com/type]' "dockerconfigjson" \
         | yq w - 'metadata.labels.[paas.ex.anz.com/secret-name]' "$dcSecret" \
         > $ex_secret_file

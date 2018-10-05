@@ -116,7 +116,7 @@ function configureKubernetesAccount() {
                 "$account_name" \
                 --context "$context" \
                 --kubeconfig-file $kubeconfigFile \
-                --omit-namespaces=kube-system,kube-public \
+                --namespaces "$context" \
                 --provider-version v2 $reg_param
     done
   fi

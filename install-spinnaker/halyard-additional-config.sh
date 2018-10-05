@@ -23,7 +23,7 @@ HALYARD_POD=$(kubectl -n ${_SPINNAKER_NS}  get po \
 kubectl -n ${_SPINNAKER_NS} exec $HALYARD_POD -- bash -c "
 set -xeo pipefail;
 
-mkdir /home/spinnaker/keys;
+mkdir -p /home/spinnaker/keys;
 
 kubectl -n ${_SPINNAKER_NS} get secret spinnaker-gcs-key -o=jsonpath='{.data.key\.json}' | base64 --decode > /home/spinnaker/keys/gcs.json;
 

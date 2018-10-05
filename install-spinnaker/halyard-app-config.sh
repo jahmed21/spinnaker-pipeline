@@ -40,10 +40,21 @@ function getCommandForAccount() {
   fi
 }
 
+function getCommandForArtifactAccount() {
+  local accountType=$1
+  local accountName=$2
+
+  if hal config artifact "$accountType" account get "$accountName" >/dev/null 2>&1; then
+    echo "edit"
+  else
+    echo "add"
+  fi
+}
 function configureDockerRegistryAccount() {
   local configName=$1
   local server=$(getDataFromSecret $configName "server")
   local email=$(getDataFromSecret $configName "email")
+  local bucket=$(getDataFromSecret $configName "bucket")
 
   local repositories=$(getDataFromSecret $configName "repositories")
   local repo_param=""
@@ -61,6 +72,15 @@ function configureDockerRegistryAccount() {
         --username "_json_key" \
         --email "$email" \
         --password-file $passwordFile $repo_param
+
+  if [[ ! -z "$bucket" ]]; then
+    local accountName=$(echo "$bucket" | sed 's/gs:\/\///' | tr -s '[:punct:]' '-')
+    echoAndExec hal config artifact gcs account \
+          $(getCommandForArtifactAccount gcs "$accountName") \
+          "$accountName" \
+          --json-path $passwordFile
+    echoAndExec hal config artifact gcs enable
+  fi
 }
 
 function processDockerRegistryAccounts() {

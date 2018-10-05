@@ -37,52 +37,13 @@ JSON
 
 resource "kubernetes_secret" "imagepullsecret" {
   metadata {
-    name      = "gcr-image"
+    name      = "gcr"
     namespace = "kube-system"
 
     annotations {
-      "paas.ex.anz.com/repositories" = "app-service-12/sample-sb"
+      #"paas.ex.anz.com/repositories" = "app-service-12"
+      "paas.ex.anz.com/bucket" = "${google_storage_bucket.pipeline_bucket.url}"
     }
-
-    labels {
-      "paas.ex.anz.com/cluster" = "${var.pipeline_gke_cluster}"
-      "paas.ex.anz.com/project" = "${var.pipeline_project_id}"
-    }
-  }
-
-  data {
-    ".dockerconfigjson" = "${data.template_file.docker-cfg.rendered}"
-  }
-
-  type = "kubernetes.io/dockerconfigjson"
-}
-
-resource "kubernetes_secret" "project_imagepullsecret" {
-  metadata {
-    name      = "gcr-project"
-    namespace = "kube-system"
-
-    annotations {
-      "paas.ex.anz.com/repositories" = "app-service-12"
-    }
-
-    labels {
-      "paas.ex.anz.com/cluster" = "${var.pipeline_gke_cluster}"
-      "paas.ex.anz.com/project" = "${var.pipeline_project_id}"
-    }
-  }
-
-  data {
-    ".dockerconfigjson" = "${data.template_file.docker-cfg.rendered}"
-  }
-
-  type = "kubernetes.io/dockerconfigjson"
-}
-
-resource "kubernetes_secret" "public_imagepullsecret" {
-  metadata {
-    name      = "gcr-public"
-    namespace = "kube-system"
 
     labels {
       "paas.ex.anz.com/cluster" = "${var.pipeline_gke_cluster}"
@@ -106,11 +67,5 @@ resource "kubernetes_namespace" "staging" {
 resource "kubernetes_namespace" "testing" {
   "metadata" {
     name = "testing"
-  }
-}
-
-resource "kubernetes_namespace" "production" {
-  "metadata" {
-    name = "production"
   }
 }

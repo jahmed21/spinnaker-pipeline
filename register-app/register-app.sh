@@ -199,7 +199,7 @@ function createAppKubeConfigInExCluster() {
 function getDockerConfigSecretNameFromAppCluster() {
   appClusterKubectl get secret \
       --field-selector type=kubernetes.io/dockerconfigjson \
-      --selector paas.ex.anz.com/cluster=$_EX_CLUSTER \
+      --selector paas.ex.anz.com/project=${_EX_PROJECT_ID},paas.ex.anz.com/cluster=${_EX_CLUSTER} \
       -o=jsonpath='{.items[*].metadata.name}'
 }
 
@@ -212,6 +212,7 @@ function createDockerConfigSecretInExCluster() {
       local docker_server=$(appClusterKubectl get secret $dcSecret --output='jsonpath={.data.\.dockerconfigjson}' | base64 --decode | jq -Mr '.auths | to_entries[] | .key')
       local email=$(appClusterKubectl get secret $dcSecret --output='jsonpath={.data.\.dockerconfigjson}' | base64 --decode | jq -Mr '.auths | to_entries[] | .value.email')
       local repo_list=$(appClusterKubectl get secret $dcSecret --output='jsonpath={.metadata.annotations.paas\.ex\.anz\.com/repositories}' | tr -s '[:blank:][:space:]' ',,')
+      local bucket=$(appClusterKubectl get secret $dcSecret --output='jsonpath={.metadata.annotations.paas\.ex\.anz\.com/bucket}')
       local password_file=$(tempFile ${dcSecret}.passwd)
       appClusterKubectl get secret $dcSecret --output='jsonpath={.data.\.dockerconfigjson}' | base64 --decode | jq -Mr '.auths | to_entries[] | .value.password' > $password_file
       local sec_name=$(echo "${_APP_PROJECT_ID}-${_APP_CLUSTER}-${dcSecret}" | tr -s '[:punct:]' '-')
@@ -224,6 +225,7 @@ function createDockerConfigSecretInExCluster() {
         --from-literal=server="$docker_server" \
         --from-literal=email="$email" \
         --from-literal=repositories="$repo_list" \
+        --from-literal=bucket="$bucket" \
         --dry-run -o yaml \
         | yq w - 'metadata.labels.[paas.ex.anz.com/cluster]' "$_APP_CLUSTER" \
         | yq w - 'metadata.labels.[paas.ex.anz.com/project]' "$_APP_PROJECT_ID" \

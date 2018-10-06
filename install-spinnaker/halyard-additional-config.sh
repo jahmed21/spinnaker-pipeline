@@ -97,6 +97,3 @@ fi
 
 # Delete the dummmy docker-registry created as part of helm install (mandatory in spinnaker chart)
 $HAL_COMMAND config provider docker-registry account delete dummy || true
-
-# Delete the spinnaker account created as part of helm install (mandatory in spinnaker chart)
-$HAL_COMMAND config provider kubernetes account delete spinnaker || true

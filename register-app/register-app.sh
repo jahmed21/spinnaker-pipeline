@@ -149,39 +149,28 @@ function createAppKubeConfigInExCluster() {
   # context
   local context="$_APP_CLUSTER_KUBECONTEXT"
 
+  local sec_name=$(echo "${_APP_PROJECT_ID}-${_APP_CLUSTER}-kubeconfig" | tr -s '[:punct:]' '-')
+  echo
+  echo "About to create kubeconfig secret '$sec_name' in $_EX_PROJECT_ID $_EX_CLUSTER cluster"
+
   # cluster
   local cluster="$(kubectl config view -o "jsonpath={.contexts[?(@.name==\"$context\")].context.cluster}")"
   local server="$(kubectl config view -o "jsonpath={.clusters[?(@.name==\"$cluster\")].cluster.server}")"
-
-  # token
   local ca_crt="$(tempFile ca_crt)"
   appClusterKubectl get secret "$secret" -o "jsonpath={.data.ca\.crt}" | openssl enc -d -base64 -A > $ca_crt
+
+  # token
   local token="$(appClusterKubectl get secret "$secret" -o "jsonpath={.data.token}" | openssl enc -d -base64 -A)"
-
+  local namespace="default"
   local kubeconfig_file="$(tempFile kubeconfig)"
-  kubectl --kubeconfig $kubeconfig_file config set-credentials "$_APP_CLUSTER_SA_NAME" --token="$token"
-  kubectl --kubeconfig $kubeconfig_file config set-cluster "$cluster" --server="$server" --certificate-authority="$ca_crt" --embed-certs
-
-  # Register all namespaces as context in spinnaker
-
-  if local namespace_list=$(appClusterKubectl get namespace -o=jsonpath='{.items[*].metadata.name}'); then
-    for namespace in $namespace_list; do
-      if [[ $namespace =~ kube ]]; then
-        echo "Skipping namespace '$namespace'"
-        continue
-      fi
-      kubectl --kubeconfig $kubeconfig_file config set-context "$namespace" --cluster="$cluster" --namespace="$namespace" --user="${_APP_CLUSTER_SA_NAME}"
-    done
-  fi
-  kubectl --kubeconfig $kubeconfig_file config use-context "default"
-
-  kubectl --kubeconfig $kubeconfig_file cluster-info > /dev/null
-
-  local sec_name=$(echo "${_APP_PROJECT_ID}-${_APP_CLUSTER}-kubeconfig" | tr -s '[:punct:]' '-')
   local ex_secret_file=$(tempFile ex-kubeconfig)
 
-  echo
-  echo "About to create kubeconfig secret '$sec_name' in $_EX_CLUSTER cluster"
+  kubectl --kubeconfig $kubeconfig_file config set-credentials "$_APP_CLUSTER_SA_NAME" --token="$token"
+  kubectl --kubeconfig $kubeconfig_file config set-cluster "$cluster" --server="$server" --certificate-authority="$ca_crt" --embed-certs
+  kubectl --kubeconfig $kubeconfig_file config set-context "$namespace" --cluster="$cluster" --namespace="$namespace" --user="${_APP_CLUSTER_SA_NAME}"
+  kubectl --kubeconfig $kubeconfig_file config use-context "$namespace"
+  kubectl --kubeconfig $kubeconfig_file cluster-info > /dev/null
+
   exClusterKubectl create secret generic "$sec_name" \
     --from-file=kubeconfig="$kubeconfig_file" \
     --dry-run -o yaml \

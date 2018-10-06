@@ -65,6 +65,11 @@ resource "google_storage_bucket_iam_member" "gcr_sa_read_access" {
 
 # Grant GCS read permission for the service acccount
 resource "google_storage_bucket_iam_member" "gcs_sa_read_access" {
+  depends_on = [
+    "google_storage_bucket.pipeline_bucket",
+    "google_storage_bucket_iam_member.gcr_sa_read_access",
+    "google_project_iam_member.gcr_sa_browser"
+  ]
   role   = "roles/storage.objectViewer"
   bucket = "${google_storage_bucket.pipeline_bucket.name}"
   member = "serviceAccount:${google_service_account.gcr_sa.email}"

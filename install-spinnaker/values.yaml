@@ -17,7 +17,7 @@ halyard:
 
 #Configure your Docker registries here
 dockerRegistries:
-- name: gcr
+- name: dummy
   address: https://gcr.io
 #  username: _json_key
 #  password: ''

@@ -107,19 +107,14 @@ function configureKubernetesAccount() {
   local kubeconfigFile=$(configFile ${appProjectId}-${appClusterName}.kubeconfig)
   getDataFromSecret $configName "kubeconfig" > $kubeconfigFile
 
-  if local context_list=$(kubectl --kubeconfig $kubeconfigFile config get-contexts -o=name); then
-    for context in $context_list; do
-      local account_name="$(echo "${appProjectId}-${appClusterName}-${context}" | tr -s '[:punct:]' '-')"
-      echo "Creating kubernetes account '$account_name'"
-      echoAndExec hal config provider kubernetes account \
-                $(getCommandForAccount kubernetes "$account_name") \
-                "$account_name" \
-                --context "$context" \
-                --kubeconfig-file $kubeconfigFile \
-                --namespaces "$context" \
-                --provider-version v2 $reg_param
-    done
-  fi
+  local account_name="$(echo "${appProjectId}-${appClusterName}" | tr -s '[:punct:]' '-')"
+  echo "Creating kubernetes account '$account_name'"
+  echoAndExec hal config provider kubernetes account \
+            $(getCommandForAccount kubernetes "$account_name") \
+            "$account_name" \
+            --kubeconfig-file $kubeconfigFile \
+            --omit-namespaces=kube-system,kube-public \
+            --provider-version v2 $reg_param
 }
 
 function processKubernetesAccounts() {

@@ -54,7 +54,12 @@ kubectl -n ${_SPINNAKER_NS} cp /tmp/halyard-app-config.sh $HALYARD_POD:/home/spi
 # Configure GCS storage for spinnaker
 GCS_JSON_KEY_PATH=/home/spinnaker/keys/gcs.json
 
-$HAL_COMMAND config storage gcs edit --project "${_PROJECT_ID}" --json-path $GCS_JSON_KEY_PATH --bucket "${_PROJECT_ID}-spinnaker-config"
+$HAL_COMMAND config storage gcs edit \
+                  --project "${_PROJECT_ID}" \
+                  --json-path $GCS_JSON_KEY_PATH \
+                  --bucket "${_PROJECT_ID}-spinnaker-config" \
+                  --no-validate
+
 $HAL_COMMAND config storage edit --type gcs
 
 # Configure pubsub
@@ -90,3 +95,8 @@ if [[ "${_OAUTH2_ENABLED}" == "true" ]]; then
     $HAL_COMMAND config security authn oauth2 enable
 fi
 
+# Delete the dummmy docker-registry created as part of helm install (mandatory in spinnaker chart)
+$HAL_COMMAND config provider docker-registry account delete dummy || true
+
+# Delete the spinnaker account created as part of helm install (mandatory in spinnaker chart)
+$HAL_COMMAND config provider kubernetes account delete spinnaker || true

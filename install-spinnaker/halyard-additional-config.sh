@@ -37,6 +37,7 @@ logging:
   level:
     com.netflix.spinnaker.gate.security: DEBUG
     com.netflix.spinnaker.clouddriver.docker: DEBUG
+    com.netflix.spinnaker.clouddriver.kubernetes: DEBUG
     com.netflix.spinnaker.echo.pubsub: DEBUG
     com.netflix.spinnaker.echo.controllers: DEBUG
     com.netflix.spinnaker.echo.artifacts: DEBUG

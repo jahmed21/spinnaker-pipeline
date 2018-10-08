@@ -1,5 +1,5 @@
 variable "app_project_number" {
-  default = "1001980276374"
+  default = "391177193792"
 }
 
 locals {

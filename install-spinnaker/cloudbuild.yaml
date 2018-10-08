@@ -3,7 +3,7 @@ substitutions:
   _UNINSTALL: 'false'
   _HELM_RELEASE_NAME: ea-cd-spin
   _HELM_VERSION: v2.11.0
-  _CD_PROJECT_ID: cd-pipeline-1
+  _CD_PROJECT_ID: cd-pipeline-2
   _CLOUDSDK_CONTAINER_CLUSTER: ea-cd-gke
   _CLOUDSDK_COMPUTE_REGION: australia-southeast1
   _OAUTH2_ENABLED: 'true'

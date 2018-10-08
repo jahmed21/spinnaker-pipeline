@@ -1,9 +1,9 @@
 variable "pipeline_project_id" {
-  default = "cd-pipeline-1"
+  default = "cd-pipeline-2"
 }
 
 variable "pipeline_project_number" {
-  default = "693677694217"
+  default = "273558596339"
 }
 
 variable "pipeline_topic" {

@@ -1,5 +1,5 @@
 locals {
-  project_id                = "cd-pipeline-1"
+  project_id                = "cd-pipeline-2"
   spinnaker_gcs_sa_name     = "spinnaker-gcs-sa"
 }
 
@@ -24,7 +24,7 @@ module "cd-gke" {
   project_id              = "${local.project_id}"
   cluster_service_account = "${format("%s-compute@developer.gserviceaccount.com", data.google_project.this_projecct.number)}"
   node_instance_type      = "n1-standard-4"
-  max_node_count          = "3"
+  max_node_count          = "2"
   kubernetes_version      = "${data.google_container_engine_versions.gke_versions.latest_master_version}"
 }
 

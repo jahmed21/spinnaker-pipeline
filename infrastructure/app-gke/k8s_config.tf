@@ -41,7 +41,7 @@ resource "kubernetes_secret" "imagepullsecret" {
     namespace = "kube-system"
 
     annotations {
-      #"paas.ex.anz.com/repositories" = "app-service-12"
+      #"paas.ex.anz.com/repositories" = "app-service-123"
       "paas.ex.anz.com/bucket" = "${google_storage_bucket.pipeline_bucket.url}"
     }
 

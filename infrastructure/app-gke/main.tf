@@ -1,5 +1,5 @@
 locals {
-  project_id = "app-service-12"
+  project_id = "app-service-123"
 }
 
 data "google_project" "this_projecct" {
@@ -23,6 +23,6 @@ module "app-gke" {
   project_id              = "${local.project_id}"
   cluster_service_account = "${format("%s-compute@developer.gserviceaccount.com", data.google_project.this_projecct.number)}"
   node_instance_type      = "n1-standard-1"
-  max_node_count          = "2"
+  max_node_count          = "1"
   kubernetes_version      = "${data.google_container_engine_versions.gke_versions.latest_master_version}"
 }

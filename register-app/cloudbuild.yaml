@@ -6,6 +6,8 @@ substitutions:
   _APP_GKE_CLUSTER: ea-app-gke
   _APP_PROJECT_ID: app-service-123
   _HELM_VERSION: v2.11.0
+  _BUCKET_URL: gs://pipeline-integration-app-service-123/
+  _PUBLISH_TOPIC: spin-pipeline
 steps:
 - name: asia.gcr.io/$PROJECT_ID/cloud-builders-community-helm:${_HELM_VERSION}
   dir: ${_WORKING_DIR}
@@ -13,10 +15,16 @@ steps:
   args:
   - '-c'
   - |
+
+    OPTIONAL_PARAM=""
+    [[ ! -z "$_BUCKET_URL" ]] && OPTIONAL_PARAM="$$OPTIONAL_PARAM --bucket $_BUCKET_URL"
+    [[ ! -z "$_PUBLISH_TOPIC" ]] && OPTIONAL_PARAM="$$OPTIONAL_PARAM --publish-topic $_PUBLISH_TOPIC"
+
     ./register-app.sh \
-        --ex-cluster ${_EX_GKE_CLUSTER} \
-        --ex-project-id ${_EX_PROJECT_ID} \
+        --spin-cluster ${_EX_GKE_CLUSTER} \
+        --spin-project-id ${_EX_PROJECT_ID} \
         --app-cluster ${_APP_GKE_CLUSTER} \
         --app-project-id ${_APP_PROJECT_ID} \
-        --region ${_REGION}
+        --region ${_REGION} \
+        $$OPTIONAL_PARAM
 timeout: 900s

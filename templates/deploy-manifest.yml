@@ -1,0 +1,144 @@
+id: deploy-manifest
+schema: "1"
+protect: true
+metadata:
+  description: Deploy kubernetes v2 manifest and/or docker image to application cluster
+  name: Deploy Manifest
+  owner: paas@ex.anz.com
+  scopes:
+  - global
+variables:
+- name: gcs_url
+  type: String
+  description: GCS URL of the manifest to be deployed
+- name: docker_server
+  type: String
+  description: Docker server
+- name: docker_repo_org
+  type: String
+  description: Docker orgnaization/namespace (project-id)
+- name: image_name
+  type: String
+  description: Docker image
+- name: k8s_namespace
+  type: String
+  description: Kubernetes namespace
+- name: docker_registry_account
+  type: String
+  description: Docker registry account
+- name: k8s_account
+  type: String
+  description: Kubernetes account
+- name: pubsub_account
+  type: String
+  description: Google Pub/Sub Account
+configuration:
+  concurrentExecutions:
+    limitConcurrent: true
+    parallel: false
+  expectedArtifacts:
+  - id: gcsManifestArtifact
+    useDefaultArtifact: true
+    usePriorArtifact: true
+    usePriorExecution: false
+    matchArtifact:
+      kind: gcs
+      name: "{{ gcs_url }}"
+      type: gcs/object
+    defaultArtifact:
+      kind: default.gcs
+      name: "{{ gcs_url }}"
+      reference: "{{ gcs_url }}"
+      type: gcs/object
+  - id: dockerImageArtifact
+    useDefaultArtifact: false
+    usePriorArtifact: true
+    usePriorExecution: false
+    matchArtifact:
+      kind: docker
+      name: "{{ docker_server }}/{{ docker_repo_org }}/{{ image_name }}"
+      type: docker/image
+    defaultArtifact:
+      kind: custom
+  parameters:
+  - name: namespace
+    label: Namespace
+    required: true
+    default: "{{ k8s_namespace }}"
+    description: Kubernetes namespace
+    hasOptions: false
+  triggers:
+  - name: gcr-trigger
+    type: docker
+    enabled: true
+    registry: "{{ docker_server }}"
+    organization: "{{ docker_repo_org }}"
+    repository: "{{ docker_repo_org }}/{{ image_name }}"
+    account: "{{ docker_registry_account }}"
+    expectedArtifactIds:
+    - dockerImageArtifact
+  - name: gcs-trigger
+    type: pubsub
+    enabled: true
+    pubsubSystem: google
+    subscriptionName: spin-pipeline
+    attributeConstraints:
+      eventType: OBJECT_FINALIZE
+    expectedArtifactIds:
+    - gcsManifestArtifact
+stages:
+- id: deployManifest
+  name: Deploy
+  type: deployManifest
+  config:
+    account: "{{ k8s_account }}"
+    cloudProvider: kubernetes
+    manifestArtifactAccount: "{{ pubsub_account }}"
+    manifestArtifactId: gcsManifestArtifact
+    moniker:
+      app: "{{ application }}"
+    relationships:
+      loadBalancers: []
+      securityGroups: []
+    source: artifact
+- id: manualJudgment
+  name: Next Step
+  type: manualJudgment
+  dependsOn:
+  - deployManifest
+  config:
+    failPipeline: true
+    judgmentInputs:
+    - value: Complete
+    - value: Rollback
+    notifications: []
+- id: undoRolloutManifest
+  name: Undo Rollout (Manifest)
+  type: undoRolloutManifest
+  dependsOn:
+  - manualJudgment
+  config:
+    account: "{{ k8s_account }}"
+    cloudProvider: kubernetes
+    kind: deployment
+    location: "{{ k8s_namespace }}"
+    manifestName: "deployment {{ image_name }}"
+    numRevisionsBack: 1
+    stageEnabled:
+      expression: |
+        ${ #judgment( 'Next Step' ) == 'Rollback' }
+      type: expression
+#- id: invokePipeline
+#  name: Promote to Testing
+#  type: pipeline
+#  dependsOn:
+#  - manualJudgment
+#  config:
+#    application: samplesb
+#    failPipeline: true
+#    pipeline: bfa69574-777e-426a-ba25-8baf27eec2ca
+#    pipelineParameters: {}
+#    stageEnabled:
+#      expression: ${#judgment("Next Step") == 'Promote to Testing'}
+#      type: expression
+#    waitForCompletion: false

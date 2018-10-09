@@ -1,25 +1,13 @@
-variable "app_project_number" {
-  default = "391177193792"
-}
-
 locals {
-  app_pubsub_serviceaccount = "service-${var.app_project_number}@gs-project-accounts.iam.gserviceaccount.com"
   spinnaker_pubsub_sa_name  = "spinnaker-pubsub"
-  subscription_name         = "spin-pipeline"
+  subscription_name         = "spin-pipeline-trigger"
+  topic_name                = "spin-pipeline"
 }
 
 # Create topic to receive application GCS notification
 resource "google_pubsub_topic" "pubsub_topic" {
-  name    = "ea-spin-topic"
+  name    = "${local.topic_name}"
   project = "${local.project_id}"
-}
-
-# Allow the application service account to publish to the topic created in this project
-resource "google_pubsub_topic_iam_member" "publish_iam" {
-  project = "${local.project_id}"
-  member  = "serviceAccount:${local.app_pubsub_serviceaccount}"
-  role    = "roles/pubsub.publisher"
-  topic   = "${google_pubsub_topic.pubsub_topic.name}"
 }
 
 # Create a subscription for spinnaker
@@ -47,4 +35,11 @@ resource "google_pubsub_subscription_iam_member" "spinnaker_pubsub_sa_role" {
   role         = "roles/pubsub.subscriber"
   member       = "serviceAccount:${google_service_account.spinnaker_pubsub_sa.email}"
   subscription = "${google_pubsub_subscription.spin_pipeline_subscription.name}"
+}
+
+# Allow Cloud Build service account to attach publisher to topic
+resource "google_project_iam_member" "cloudbuild-access-to-pubsub" {
+  project = "${local.project_id}"
+  role    = "roles/pubsub.admin"
+  member  = "serviceAccount:${data.google_project.this_projecct.number}@cloudbuild.gserviceaccount.com"
 }

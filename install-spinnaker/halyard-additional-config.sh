@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# This script is executed in kubernetes job hel-install-job (created  by spinnaker helm chart)
+# This script is executed in kubernetes job hal-install-job (created  by spinnaker helm chart)
 # These are additional halyard config applied before deploying spinnaker
 
 set -xeo pipefail

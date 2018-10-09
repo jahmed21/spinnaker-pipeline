@@ -8,7 +8,7 @@ substitutions:
   _CLOUDSDK_COMPUTE_REGION: australia-southeast1
   _OAUTH2_ENABLED: 'true'
   _PUBSUB_ENABLED: 'true'
-  _PUBSUB_SUBSCRIPTION_NAME: 'spin-pipeline'
+  _PUBSUB_SUBSCRIPTION_NAME: 'spin-pipeline-trigger'
 steps:
 - name: asia.gcr.io/$PROJECT_ID/cloud-builders-community-helm:${_HELM_VERSION}
   dir: ${_WORKING_DIR}
@@ -19,18 +19,17 @@ steps:
     set +x
     set -eo pipefail
 
-    CLEAN_FLAG=""
-    OTHER_PARAM=""
-    [[ "${_UNINSTALL}" == "true" ]] && CLEAN_FLAG="--clean" 
+    OPTIONAL_PARAMS=""
+    [[ "${_UNINSTALL}" == "true" ]] && OPTIONAL_PARAMS="--clean"
     [[ "${_OAUTH2_ENABLED}" == "true" ]] && \
-      OTHER_PARAM="--oauth2-client-id $$OAUTH2_CLIENT_ID --oauth2-client-secret $$OAUTH2_CLIENT_SECRET"
+      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --oauth2-client-id $$OAUTH2_CLIENT_ID --oauth2-client-secret $$OAUTH2_CLIENT_SECRET"
     [[ "${_PUBSUB_ENABLED}" == "true" ]] && \
-      OTHER_PARAM="$$OTHER_PARAM --pubsub-subscription ${_PUBSUB_SUBSCRIPTION_NAME}"
+      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --pubsub-subscription ${_PUBSUB_SUBSCRIPTION_NAME}"
 
     ./install-spinnaker.sh \
         --project ${_CD_PROJECT_ID} \
         --helm-release-name ${_HELM_RELEASE_NAME} \
-        $$OTHER_PARAM $$CLEAN_FLAG
+        $$OPTIONAL_PARAMS
   env:
   - 'GCLOUD_PROJECT=${_CD_PROJECT_ID}'
   - 'CLOUDSDK_COMPUTE_REGION=${_CLOUDSDK_COMPUTE_REGION}'

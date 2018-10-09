@@ -3,7 +3,6 @@
 set +x
 set -eo pipefail
 
-# Process command line arguments
 function usage() {
 echo
 cat <<EOF
@@ -19,8 +18,11 @@ EOF
 exit 1
 }
 
-TEMP=$(getopt -o h --long project:,helm-release-name:,namespace:,oauth2-client-id:,oauth2-client-secret:,pubsub-subscription:,pubsub-sa-jsonkey-gcs-url:,clean \
-              -n 'install-spinnaker.sh' -- "$@")
+# Process command line arguments
+TEMP=$(getopt -o h \
+              --long project:,helm-release-name:,namespace:,oauth2-client-id:,oauth2-client-secret:,pubsub-subscription:,pubsub-sa-jsonkey-gcs-url:,clean \
+              -n 'install-spinnaker.sh' \
+              -- "$@")
 if [ $? != 0 ] ; then 
    echo "Terminating..." >&2 
    exit 2
@@ -35,7 +37,7 @@ _SPINNAKER_NS="spinnaker"
 _OAUTH2_CLIENT_ID=""
 _OAUTH2_CLIENT_SECRET=""
 _OAUTH2_ENABLED=false
-_UNINSTALL=false
+_CLEAN=false
 _PUBSUB_ENABLED=false
 _PUBSUB_SUBSCRIPTION_NAME=""
 
@@ -47,7 +49,7 @@ while true ; do
     --oauth2-client-id) _OAUTH2_CLIENT_ID=$2; shift 2;;
     --oauth2-client-secret) _OAUTH2_CLIENT_SECRET=$2; shift 2;;
     --pubsub-subscription) _PUBSUB_SUBSCRIPTION_NAME=$2; shift 2;;
-    --clean) _UNINSTALL=true; shift ;;
+    --clean) _CLEAN=true; shift ;;
 	  --) shift ; break ;;
 	  *) echo "Internal error!" ; usage ;;
 	esac
@@ -62,19 +64,21 @@ fi
 if [[ ! -z "$_OAUTH2_CLIENT_ID" && ! -z "$_OAUTH2_CLIENT_SECRET" ]]; then
   _OAUTH2_ENABLED=true
 fi
+
 if [[ ! -z "$_PUBSUB_SUBSCRIPTION_NAME" ]]; then
   _PUBSUB_ENABLED=true
 fi
 
 
-echo "Parameters"
-echo "_CD_PROJECT_ID: $_CD_PROJECT_ID"
-echo "_HELM_RELEASE_NAME: $_HELM_RELEASE_NAME"
-echo "_SPINNAKER_NS: $_SPINNAKER_NS"
-echo "_OAUTH2_ENABLED: $_OAUTH2_ENABLED"
-echo "_PUBSUB_ENABLED: $_PUBSUB_ENABLED"
-echo "_PUBSUB_SUBSCRIPTION_NAME: $_PUBSUB_SUBSCRIPTION_NAME"
-echo "_UNINSTALL: $_UNINSTALL"
+echo
+echo "---------------- Parameters ------------------"
+echo "              Project Id: $_CD_PROJECT_ID"
+echo "            Release Name: $_HELM_RELEASE_NAME"
+echo "     Spinnaker Namespace: $_SPINNAKER_NS"
+echo "          OAuth2 Enabled: $_OAUTH2_ENABLED"
+echo "          Pubsub Enabled: $_PUBSUB_ENABLED"
+echo "Pubsub Subscription Name: $_PUBSUB_SUBSCRIPTION_NAME"
+echo "                   Clean: $_CLEAN"
 echo
 
 # Done processing command line arguments
@@ -87,35 +91,36 @@ function tempFile() {
   mktemp ${MYTMPDIR}/${1}.XXXXX
 }
 
-function uninstall() {
+function cleanUpPreviousInstallation() {
   echo
-  echo "Cleaning up previous installation"
+  echo "Removing previous installation"
   helm --debug delete --purge  ${_HELM_RELEASE_NAME} --timeout 300 || true
 
   # now delete the CRB
-  kubectl delete clusterrolebinding -l release="${_HELM_RELEASE_NAME}" || true
+  #kubectl delete clusterrolebinding -l release="${_HELM_RELEASE_NAME}" || true
 
   # now delete the release objects
-  kubectl --namespace ${_SPINNAKER_NS} delete all -l release="${_HELM_RELEASE_NAME}" || true
+  #kubectl --namespace ${_SPINNAKER_NS} delete all -l release="${_HELM_RELEASE_NAME}" || true
 
   # now delete the running jobs,pods
-  kubectl --namespace ${_SPINNAKER_NS} delete job,pod --all || true
+  #kubectl --namespace ${_SPINNAKER_NS} delete job,pod --all || true
 
   # now delete the tillerless storage
-  kubectl --namespace kube-system delete secret "${_HELM_RELEASE_NAME}.v1" || true
+  #kubectl --namespace kube-system delete secret "${_HELM_RELEASE_NAME}.v1" || true
 
-  # wait till spinnaker namespace removed
+  # wait till spinnaker workloads are removed
   while [[ ! -z "$(kubectl --namespace ${_SPINNAKER_NS} get po -o=jsonpath='{.items[*].metadata.name}')" ]]; do
     sleep 3
   done
-  echo "Done deleting previous installation"
+
+  echo "Previous installation removed"
+  echo
 }
 
 function createAdditinoalConfigMap() {
 
   echo
   echo "Creating configmap for halyard additional config"
-# Create the spinnaker namespace and additonal hal configmap configured in spinnaker helm chart
 
   local configmap_file=$(tempFile additional-config)
   cat <<EOF_KUBECTL > $configmap_file
@@ -140,12 +145,12 @@ data:
       "${_PUBSUB_SUBSCRIPTION_NAME}"
 EOF_KUBECTL
 
-  # Add halyard-additional-config script to configmap
+  # Configure halyard-additional-config.sh, halyard-app-config.sh scripts as extra data in configmap so that they will
+  # be mounted into helm install job pod
   kubectl create configmap test-$$ --from-file=halyard-additional-config.sh --dry-run -o yaml \
     | yq r - 'data'  \
     | sed "s/^/  /" >> $configmap_file
 
-  # Add halyard-additional-config script to configmap
   kubectl create configmap test-$$ --from-file=halyard-app-config.sh --dry-run -o yaml \
     | yq r - 'data'  \
     | sed "s/^/  /" >> $configmap_file
@@ -170,12 +175,8 @@ function invokeHelm() {
 
 # Main logic starts here
 
-if [[ "${_UNINSTALL}" != "true" ]]; then
-  helm status ${_HELM_RELEASE_NAME} 2> /dev/null || true
-fi
-
-if [[ "${_UNINSTALL}" == "true" || ! -z "$(helm status ${_HELM_RELEASE_NAME} 2> /dev/null | grep 'STATUS: \(FAILED\|PENDING\)' )" ]]; then
-  uninstall
+if [[ "${_CLEAN}" == "true" || ! -z "$(helm status ${_HELM_RELEASE_NAME} 2> /dev/null | grep 'STATUS: \(FAILED\|PENDING\)' )" ]]; then
+  cleanUpPreviousInstallation
 fi
 
 createAdditinoalConfigMap

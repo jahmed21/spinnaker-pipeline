@@ -73,8 +73,9 @@ function configureDockerRegistryAccount() {
         --email "$email" \
         --password-file $passwordFile $repo_param
 
+  # if the manifest's are stored in GCS bucket, create a GCS account for spinnaker to retrieve them
   if [[ ! -z "$bucket" ]]; then
-    local accountName=$(echo "$bucket" | sed 's/gs:\/\///' | tr -s '[:punct:]' '-')
+    local accountName="${configName}-gcs"
     echoAndExec hal config artifact gcs account \
           $(getCommandForArtifactAccount gcs "$accountName") \
           "$accountName" \

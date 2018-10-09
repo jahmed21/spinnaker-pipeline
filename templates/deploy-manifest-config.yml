@@ -1,0 +1,24 @@
+schema: "1"
+pipeline:
+  application: samplesb
+  name: Deploy to Staging
+  template:
+    source: spinnaker://deploy-manifest
+  variables:
+    manifest:
+      gcs_url: gs://pipeline-integration-app-service-123/manifests/deploy.yml
+      account: pipeline-integration-app-service-123
+    image:
+      server: asia.gcr.io
+      org: app-service-123
+      name: sample-sb
+      account: app-service-123-ea-app-gke-gcr
+    cluster:
+      namespace: staging
+      account: app-service-123-ea-app-gke
+configuration:
+  inherit:
+  - concurrentExecutions
+  - expectedArtifacts
+  - parameters
+  - triggers

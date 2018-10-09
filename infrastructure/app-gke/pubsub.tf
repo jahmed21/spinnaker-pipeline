@@ -20,6 +20,13 @@ locals {
   gcr_sa_name    = "gcr-sa"
 }
 
+# Allow Pipeline Cloud Build service account to create workload and CRB in the app cluster
+resource "google_project_iam_member" "pipeline-cloudbuild-access-to-gke" {
+  role    = "roles/container.admin"
+  project = "${local.project_id}"
+  member  = "serviceAccount:${var.pipeline_project_number}@cloudbuild.gserviceaccount.com"
+}
+
 # Bucket to store application config files (deployment manifest, pipeline config files..etc)
 resource "google_storage_bucket" "pipeline_bucket" {
   project       = "${local.project_id}"
@@ -27,13 +34,6 @@ resource "google_storage_bucket" "pipeline_bucket" {
   location      = "${var.region}"
   storage_class = "REGIONAL"
   force_destroy = "true"
-}
-
-# Send notification to pipeline topic (created under spinnaker project) whenever there are changes in this bucket
-resource "google_storage_notification" "pipeline_bucket_notification" {
-  bucket         = "${google_storage_bucket.pipeline_bucket.name}"
-  payload_format = "JSON_API_V1"
-  topic          = "${local.pub_topic_name}"
 }
 
 # Create a service account  to access GCR of app project
@@ -50,10 +50,10 @@ resource "google_service_account_key" "gcr_sa_key" {
 
 # Project browser role is required to list images in the repository
 # Refer https://github.com/spinnaker/spinnaker/issues/2407
-resource "google_project_iam_member"  "gcr_sa_browser" {
-  role = "roles/browser"
-  project      = "${local.project_id}"
-  member = "serviceAccount:${google_service_account.gcr_sa.email}"
+resource "google_project_iam_member" "gcr_sa_browser" {
+  role    = "roles/browser"
+  project = "${local.project_id}"
+  member  = "serviceAccount:${google_service_account.gcr_sa.email}"
 }
 
 # Grant GCR read permission for the service acccount
@@ -68,16 +68,21 @@ resource "google_storage_bucket_iam_member" "gcs_sa_read_access" {
   depends_on = [
     "google_storage_bucket.pipeline_bucket",
     "google_storage_bucket_iam_member.gcr_sa_read_access",
-    "google_project_iam_member.gcr_sa_browser"
+    "google_project_iam_member.gcr_sa_browser",
   ]
+
   role   = "roles/storage.objectViewer"
   bucket = "${google_storage_bucket.pipeline_bucket.name}"
   member = "serviceAccount:${google_service_account.gcr_sa.email}"
 }
 
-# Allow Pipeline Cloud Build service account create workload in the cluster and create ClusterRoleBinding
-resource "google_project_iam_member" "pipeline-cloudbuild-access-to-gke" {
-  role    = "roles/container.admin"
-  project = "${local.project_id}"
-  member  = "serviceAccount:${var.pipeline_project_number}@cloudbuild.gserviceaccount.com"
+# Allow Pipeline Cloud Build service account to create notification on GCS bucket
+resource "google_storage_bucket_iam_member" "pipeline-cloudbuild-gcs" {
+  depends_on = [
+    "google_storage_bucket_iam_member.gcs_sa_read_access",
+  ]
+
+  role   = "roles/storage.admin"
+  bucket = "${google_storage_bucket.pipeline_bucket.name}"
+  member = "serviceAccount:${var.pipeline_project_number}@cloudbuild.gserviceaccount.com"
 }

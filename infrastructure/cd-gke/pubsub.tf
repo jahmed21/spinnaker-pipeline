@@ -1,7 +1,8 @@
 locals {
-  spinnaker_pubsub_sa_name  = "spinnaker-pubsub"
-  subscription_name         = "spin-pipeline-trigger"
-  topic_name                = "spin-pipeline"
+  spinnaker_pubsub_sa_name     = "spinnaker-pubsub-sa"
+  spinnaker_pubsub_sa_key_name = "spinnaker-pubsub-sa-key.json"
+  subscription_name            = "spin-pipeline-trigger"
+  topic_name                   = "spin-pipeline"
 }
 
 # Create topic to receive application GCS notification
@@ -27,6 +28,14 @@ resource "google_service_account" "spinnaker_pubsub_sa" {
 # Create service account key for spinnaker pubsub
 resource "google_service_account_key" "spinnaker_pubsub_sa_key" {
   service_account_id = "${google_service_account.spinnaker_pubsub_sa.name}"
+}
+
+# Store service account key as bucket object
+resource "google_storage_bucket_object" "spinnaker_pubsub_sa_key" {
+  name         = "${local.spinnaker_pubsub_sa_key_name}"
+  content      = "${base64decode(google_service_account_key.spinnaker_pubsub_sa_key.private_key)}"
+  bucket       = "${google_storage_bucket.halyard_config.name}"
+  content_type = "application/json"
 }
 
 # Allow spinnaker service account to subscribe only to this subscription

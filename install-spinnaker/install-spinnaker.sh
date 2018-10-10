@@ -1,26 +1,36 @@
 #!/usr/bin/env bash
 
-set +x
 set -eo pipefail
 
+declare -A OPTS=(
+                      ["project:"]="Project Id of the Spinnaker deployment project"
+            ["helm-release-name:"]="Helm release name"
+                ["chart-version:"]="Spinnaker chart version (default to 1.1.4)"
+             ["oauth2-client-id:"]="Google OAUTH2 client id"
+         ["oauth2-client-secret:"]="Google OAUTH2 client secret"
+          ["oauth2-redirect-url:"]="Redirect (login) URL for OAUTH2"
+                ["gate-base-url:"]="Gate override base url"
+          ["pubsub-subscription:"]="Name of the pubsub subscription to be used by spinnaker"
+      ["pubsub-sa-key-json-name:"]="Name of the pubusb key json file stored in project's halyard-config bucket"
+         ["gcs-sa-key-json-name:"]="Name of the gcs key json file stored in project's halyard-config bucket"
+                         ["clean"]="Uninstall previous helm installation first"
+      )
+
 function usage() {
-echo
-cat <<EOF
-usage $(basename $0)
-  --project                   Project Id of the Spinnaker deployment project
-  --helm-relase-name          Helm relase name
-  --namespace                 Kubernetes namespace where spinnaker will be deployed
-  --oauth2-client-id          Google OAUTH2 client id
-  --oauth2-client-secret      Google OAUTH2 client secret
-  --pubsub-subscription       Name of the pubsub subscription to be used by spinnaker
-  --clean                     Uninstall previous helm installation first
-EOF
-exit 1
+  echo
+  echo "usage $(basename $0)"
+  for opt in "${!OPTS[@]}"; do
+    local pname=$(echo "$opt" | tr -d ':')
+    printf "  %-30s %s\n" "--${pname}" "${OPTS[$opt]}"
+  done
+  exit 1
 }
+
+LONG_OPTS=$(echo "${!OPTS[@]}" | tr ' ' ',')
 
 # Process command line arguments
 TEMP=$(getopt -o h \
-              --long project:,helm-release-name:,namespace:,oauth2-client-id:,oauth2-client-secret:,pubsub-subscription:,pubsub-sa-jsonkey-gcs-url:,clean \
+              --long $LONG_OPTS \
               -n 'install-spinnaker.sh' \
               -- "$@")
 if [ $? != 0 ] ; then 
@@ -33,132 +43,112 @@ eval set -- "$TEMP"
 
 _CD_PROJECT_ID=""
 _HELM_RELEASE_NAME=""
-_SPINNAKER_NS="spinnaker"
 _OAUTH2_CLIENT_ID=""
 _OAUTH2_CLIENT_SECRET=""
-_OAUTH2_ENABLED=false
 _CLEAN=false
-_PUBSUB_ENABLED=false
 _PUBSUB_SUBSCRIPTION_NAME=""
+_CHART_VERSION="1.1.4"
+_GCS_SA_KEY_JSON_NAME=""
+_PUBSUB_SA_KEY_JSON_NAME=""
+_GATE_BASE_URL=""
+_OAUTH2_REDIRECT_URL=""
+
+VALUES_FILE=values-updated.yaml
+SPINNAKER_NS="spinnaker"
 
 while true ; do
 	case "$1" in
     --project) _CD_PROJECT_ID=$2; shift 2;;
     --helm-release-name) _HELM_RELEASE_NAME=$2; shift 2;;
-    --namespace) _SPINNAKER_NS=$2; shift 2;;
     --oauth2-client-id) _OAUTH2_CLIENT_ID=$2; shift 2;;
     --oauth2-client-secret) _OAUTH2_CLIENT_SECRET=$2; shift 2;;
+    --oauth2-redirect-url) _OAUTH2_REDIRECT_URL=$2; shift 2;;
+    --gate-base-url) _GATE_BASE_URL=$2; shift 2;;
     --pubsub-subscription) _PUBSUB_SUBSCRIPTION_NAME=$2; shift 2;;
+    --chart-version) _CHART_VERSION=$2; shift 2;;
+    --pubsub-sa-key-json-name) _PUBSUB_SA_KEY_JSON_NAME=$2; shift 2;;
+    --gcs-sa-key-json-name) _GCS_SA_KEY_JSON_NAME=$2; shift 2;;
     --clean) _CLEAN=true; shift ;;
 	  --) shift ; break ;;
 	  *) echo "Internal error!" ; usage ;;
 	esac
 done
 
-if [[ ! -z "$*" || -z "$_CD_PROJECT_ID" ]]; then
+if [[ ! -z "$*" || -z "$_CD_PROJECT_ID" || -z "${_GCS_SA_KEY_JSON_NAME}" ]]; then
    usage
 fi
 
 [[ -z "$_HELM_RELEASE_NAME" ]] && _HELM_RELEASE_NAME="${_CD_PROJECT_ID}-spin"
 
-if [[ ! -z "$_OAUTH2_CLIENT_ID" && ! -z "$_OAUTH2_CLIENT_SECRET" ]]; then
-  _OAUTH2_ENABLED=true
-fi
-
-if [[ ! -z "$_PUBSUB_SUBSCRIPTION_NAME" ]]; then
-  _PUBSUB_ENABLED=true
-fi
-
-
 echo
 echo "---------------- Parameters ------------------"
 echo "              Project Id: $_CD_PROJECT_ID"
 echo "            Release Name: $_HELM_RELEASE_NAME"
-echo "     Spinnaker Namespace: $_SPINNAKER_NS"
-echo "          OAuth2 Enabled: $_OAUTH2_ENABLED"
-echo "          Pubsub Enabled: $_PUBSUB_ENABLED"
-echo "Pubsub Subscription Name: $_PUBSUB_SUBSCRIPTION_NAME"
+echo " Spinnaker Chart Version: $_CHART_VERSION"
+echo "        OAuth2 Client Id: $_OAUTH2_CLIENT_ID"
+echo "PubSub Subscription Name: $_PUBSUB_SUBSCRIPTION_NAME"
+echo " PubSub SA Key JSON Name: $_PUBSUB_SA_KEY_JSON_NAME"
+echo "    GCS SA Key JSON Name: $_GCS_SA_KEY_JSON_NAME"
 echo "                   Clean: $_CLEAN"
 echo
 
 # Done processing command line arguments
 
-# Create a temp directory for all files generated during this execution
-MYTMPDIR=$(mktemp -d /tmp/install-spinnaker.XXXX)
-trap "rm -vrf $MYTMPDIR" EXIT
+function addDataToValues() {
+  local values_file=$1
+  local key=$2
+  local dataName=$3
+  local dataValue="$4"
 
-function tempFile() {
-  mktemp ${MYTMPDIR}/${1}.XXXXX
+  if [[ -z "${dataValue}" ]]; then
+    echo "Error. empty value for config '$key'-'$dataName'"
+    exit 1
+  fi
+  echo "Configuring '$key'-'$dataName'"
+  yq w -i $values_file "halyard.${key}.data.[${dataName}]"  "$dataValue"
 }
 
-function cleanUpPreviousInstallation() {
-  echo
-  echo "Removing previous installation"
-  helm --debug delete --purge  ${_HELM_RELEASE_NAME} --timeout 300 || true
-
-  # now delete the CRB
-  #kubectl delete clusterrolebinding -l release="${_HELM_RELEASE_NAME}" || true
-
-  # now delete the release objects
-  #kubectl --namespace ${_SPINNAKER_NS} delete all -l release="${_HELM_RELEASE_NAME}" || true
-
-  # now delete the running jobs,pods
-  #kubectl --namespace ${_SPINNAKER_NS} delete job,pod --all || true
-
-  # now delete the tillerless storage
-  #kubectl --namespace kube-system delete secret "${_HELM_RELEASE_NAME}.v1" || true
-
-  # wait till spinnaker workloads are removed
-  while [[ ! -z "$(kubectl --namespace ${_SPINNAKER_NS} get po -o=jsonpath='{.items[*].metadata.name}')" ]]; do
-    sleep 3
-  done
-
-  echo "Previous installation removed"
-  echo
+function configureAdditionalScripts() {
+  local values_file=$1
+  local file=$2
+  addDataToValues $values_file "additionalScripts"  $(basename $file) "$(cat $file)"
 }
 
-function createAdditinoalConfigMap() {
+function configureHalyardConfigSecret() {
+  local values_file=$1
+  local secretName=$2
+  local keyJSONFileName=$3
+  local encodedValue="$(gsutil cat gs://${_CD_PROJECT_ID}-halyard-config/${keyJSONFileName} | base64 --wrap=0)"
+  if [[ -z  "$encodedValue" ]]; then
+    echo "Halyard Config '$keyJSONFileName' not found at gs://${_CD_PROJECT_ID}-halyard-config/${keyJSONFileName}"
+    exit 1
+  fi
+  addDataToValues $values_file "additionalSecrets"  $secretName "${encodedValue}"
+}
 
-  echo
-  echo "Creating configmap for halyard additional config"
+function configOAuthSecrets() {
+  local values_file=$1
+  local secretName=$2
+  local secretValue=$3
 
-  local configmap_file=$(tempFile additional-config)
-  cat <<EOF_KUBECTL > $configmap_file
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  labels:
-    app: ${_HELM_RELEASE_NAME}-spinnaker
-    release: ${_HELM_RELEASE_NAME}
-  name: my-halyard-config
-  namespace: ${_SPINNAKER_NS}
-data:
-  config.sh: |
+  if [[ -z "${secretValue}" ]]; then
+    echo "Error. empty secret value for '$secretName'"
+    exit 1
+  fi
+  addDataToValues $values_file "additionalSecrets"  $secretName "$(echo "$secretValue" | base64 --wrap=0)"
+}
 
-    bash /opt/halyard/additional/halyard-additional-config.sh \
-      "${_CD_PROJECT_ID}" \
-      "${_SPINNAKER_NS}" \
-      "${_OAUTH2_ENABLED}" \
-      "${_OAUTH2_CLIENT_ID}" \
-      "${_OAUTH2_CLIENT_SECRET}" \
-      "${_PUBSUB_ENABLED}" \
-      "${_PUBSUB_SUBSCRIPTION_NAME}"
-EOF_KUBECTL
+function configureAdditionalConfigs() {
+  local values_file=$1
+  local configName=$2
+  local configValue=$3
+  addDataToValues $values_file "additionalConfigMaps"  ${configName}  "${configValue}"
+}
 
-  # Configure halyard-additional-config.sh, halyard-app-config.sh scripts as extra data in configmap so that they will
-  # be mounted into helm install job pod
-  kubectl create configmap test-$$ --from-file=halyard-additional-config.sh --dry-run -o yaml \
-    | yq r - 'data'  \
-    | sed "s/^/  /" >> $configmap_file
-
-  kubectl create configmap test-$$ --from-file=halyard-app-config.sh --dry-run -o yaml \
-    | yq r - 'data'  \
-    | sed "s/^/  /" >> $configmap_file
-
-  # validate the config file
-  kubeval $configmap_file
-
-  kubectl apply -f $configmap_file
+function configureAdditionalConfigFile() {
+  local values_file=$1
+  local file=$2
+  configureAdditionalConfigs $values_file "$(basename $file)" "$(cat $file)"
 }
 
 function invokeHelm() {
@@ -166,19 +156,59 @@ function invokeHelm() {
   echo
   echo "Helming now"
   set -x
-  helm --debug upgrade --install ${_HELM_RELEASE_NAME} stable/spinnaker \
-    --timeout 1200 \
-    --wait \
-    --namespace ${_SPINNAKER_NS} \
-    --values values.yaml
+  helm upgrade ${_HELM_RELEASE_NAME} stable/spinnaker \
+    --install \
+    --debug \
+    --timeout 900 \
+    --namespace ${SPINNAKER_NS} \
+    --version  ${_CHART_VERSION} \
+    --values ${VALUES_FILE}
 }
 
 # Main logic starts here
 
-if [[ "${_CLEAN}" == "true" || ! -z "$(helm status ${_HELM_RELEASE_NAME} 2> /dev/null | grep 'STATUS: \(FAILED\|PENDING\)' )" ]]; then
+if [[ "${_CLEAN}" == "true" ]]; then
   cleanUpPreviousInstallation
 fi
 
-createAdditinoalConfigMap
+cp values.yaml $VALUES_FILE
+
+# Configure additionalScripts
+configureAdditionalScripts  $VALUES_FILE  gcs-config.sh
+configureAdditionalScripts  $VALUES_FILE  debug-config.sh
+configureAdditionalScripts  $VALUES_FILE  remove-dummy-registry.sh
+
+# Configure halyard-app-config.sh as additionalConfigMaps
+configureAdditionalConfigFile  $VALUES_FILE  halyard-app-config.sh
+
+# Configure spinnaker-local.yml as additionalConfigMaps
+configureAdditionalConfigFile  $VALUES_FILE  spinnaker-local.yml
+
+# Copy gcs key from halyard-config bucket into additionSecrets
+configureHalyardConfigSecret $VALUES_FILE  "gcs.json"  $_GCS_SA_KEY_JSON_NAME
+
+# Copy pubsub key from halyard-config bucket into additionSecrets
+if [[ ! -z "$_PUBSUB_SA_KEY_JSON_NAME" ]]; then
+  configureHalyardConfigSecret $VALUES_FILE  "pubsub.json"  $_PUBSUB_SA_KEY_JSON_NAME
+fi
+
+# Create OAuth Client Id & Secret as additionalSecrets
+
+if [[ ! -z "${_OAUTH2_CLIENT_ID}" && ! -z "${_OAUTH2_CLIENT_SECRET}" ]]; then
+  configureAdditionalScripts  $VALUES_FILE  oauth-config.sh
+  configOAuthSecrets $VALUES_FILE  "oauth-client-id"  "$_OAUTH2_CLIENT_ID"
+  configOAuthSecrets $VALUES_FILE  "oauth-client-secret"  "$_OAUTH2_CLIENT_SECRET"
+  configOAuthSecrets $VALUES_FILE  "gate-base-url"  "${_GATE_BASE_URL}"
+  configOAuthSecrets $VALUES_FILE  "oauth-redirect-url"  "${_OAUTH2_REDIRECT_URL}"
+fi
+
+
+# Below values are configured as additionalConfigMap items, so that scripts can get these values
+configureAdditionalConfigs  $VALUES_FILE  "project-id"  "${_CD_PROJECT_ID}"
+
+if [[ ! -z "$_PUBSUB_SUBSCRIPTION_NAME" ]]; then
+  configureAdditionalScripts  $VALUES_FILE  pubsub-config.sh
+  configureAdditionalConfigs  $VALUES_FILE  "pubsub-subscription-name"  "${_PUBSUB_SUBSCRIPTION_NAME}"
+fi
 
 invokeHelm

@@ -6,9 +6,7 @@ declare -A OPTS=(
                       ["project:"]="Project Id of the Spinnaker deployment project"
             ["helm-release-name:"]="Helm release name"
                 ["chart-version:"]="Spinnaker chart version (default to 1.1.4)"
-             ["oauth2-client-id:"]="Google OAUTH2 client id"
-         ["oauth2-client-secret:"]="Google OAUTH2 client secret"
-          ["oauth2-redirect-url:"]="Redirect (login) URL for OAUTH2"
+             ["oauth2-json-name:"]="Google OAUTH2 client secret json file"
                 ["gate-base-url:"]="Gate override base url"
           ["pubsub-subscription:"]="Name of the pubsub subscription to be used by spinnaker"
       ["pubsub-sa-key-json-name:"]="Name of the pubusb key json file stored in project's halyard-config bucket"
@@ -43,15 +41,13 @@ eval set -- "$TEMP"
 
 _CD_PROJECT_ID=""
 _HELM_RELEASE_NAME=""
-_OAUTH2_CLIENT_ID=""
-_OAUTH2_CLIENT_SECRET=""
+_OAUTH2_JSON_NAME=""
 _CLEAN=false
 _PUBSUB_SUBSCRIPTION_NAME=""
 _CHART_VERSION="1.1.4"
 _GCS_SA_KEY_JSON_NAME=""
 _PUBSUB_SA_KEY_JSON_NAME=""
 _GATE_BASE_URL=""
-_OAUTH2_REDIRECT_URL=""
 
 VALUES_FILE=values-updated.yaml
 SPINNAKER_NS="spinnaker"
@@ -60,9 +56,7 @@ while true ; do
 	case "$1" in
     --project) _CD_PROJECT_ID=$2; shift 2;;
     --helm-release-name) _HELM_RELEASE_NAME=$2; shift 2;;
-    --oauth2-client-id) _OAUTH2_CLIENT_ID=$2; shift 2;;
-    --oauth2-client-secret) _OAUTH2_CLIENT_SECRET=$2; shift 2;;
-    --oauth2-redirect-url) _OAUTH2_REDIRECT_URL=$2; shift 2;;
+    --oauth2-json-name) _OAUTH2_JSON_NAME=$2; shift 2;;
     --gate-base-url) _GATE_BASE_URL=$2; shift 2;;
     --pubsub-subscription) _PUBSUB_SUBSCRIPTION_NAME=$2; shift 2;;
     --chart-version) _CHART_VERSION=$2; shift 2;;
@@ -85,7 +79,8 @@ echo "---------------- Parameters ------------------"
 echo "              Project Id: $_CD_PROJECT_ID"
 echo "            Release Name: $_HELM_RELEASE_NAME"
 echo " Spinnaker Chart Version: $_CHART_VERSION"
-echo "        OAuth2 Client Id: $_OAUTH2_CLIENT_ID"
+echo "        OAuth2 JSON Name: $_OAUTH2_JSON_NAME"
+echo "           Gate Base URL: $_GATE_BASE_URL"
 echo "PubSub Subscription Name: $_PUBSUB_SUBSCRIPTION_NAME"
 echo " PubSub SA Key JSON Name: $_PUBSUB_SA_KEY_JSON_NAME"
 echo "    GCS SA Key JSON Name: $_GCS_SA_KEY_JSON_NAME"
@@ -167,10 +162,6 @@ function invokeHelm() {
 
 # Main logic starts here
 
-if [[ "${_CLEAN}" == "true" ]]; then
-  cleanUpPreviousInstallation
-fi
-
 cp values.yaml $VALUES_FILE
 
 # Configure additionalScripts
@@ -194,12 +185,13 @@ fi
 
 # Create OAuth Client Id & Secret as additionalSecrets
 
-if [[ ! -z "${_OAUTH2_CLIENT_ID}" && ! -z "${_OAUTH2_CLIENT_SECRET}" ]]; then
+if [[ ! -z "${_OAUTH2_JSON_NAME}" ]]; then
   configureAdditionalScripts  $VALUES_FILE  oauth-config.sh
-  configOAuthSecrets $VALUES_FILE  "oauth-client-id"  "$_OAUTH2_CLIENT_ID"
-  configOAuthSecrets $VALUES_FILE  "oauth-client-secret"  "$_OAUTH2_CLIENT_SECRET"
+  configOAuthSecrets $VALUES_FILE  "oauth-client-id"  \
+            "$(gsutil cat gs://${_CD_PROJECT_ID}-halyard-config/${_OAUTH2_JSON_NAME} | jq -Mr .web.client_id)"
+  configOAuthSecrets $VALUES_FILE  "oauth-client-secret"  \
+            "$(gsutil cat gs://${_CD_PROJECT_ID}-halyard-config/${_OAUTH2_JSON_NAME} | jq -Mr .web.client_secret)"
   configOAuthSecrets $VALUES_FILE  "gate-base-url"  "${_GATE_BASE_URL}"
-  configOAuthSecrets $VALUES_FILE  "oauth-redirect-url"  "${_OAUTH2_REDIRECT_URL}"
 fi
 
 

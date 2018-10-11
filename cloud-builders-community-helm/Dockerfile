@@ -6,7 +6,7 @@ ARG HELM_VERSION=v2.11.0
 ARG YQ_VERSION=2.1.1
 ARG KUBEVAL_VERSION=0.7.3
 
-LABEL maintainer="manikann@gmail.com" \
+LABEL maintainer="manikandan.natarajan@anz.com" \
       org.label-schema.vcs-ref=$COMMIT_SHA \
       org.label-schema.build-date=$BUILD_DATE
 

@@ -24,6 +24,6 @@ $HAL_COMMAND config security authn oauth2 edit \
                 --client-id ${_OAUTH2_CLIENT_ID} \
                 --client-secret ${_OAUTH2_CLIENT_SECRET} \
                 --provider google \
-                --pre-established-redirect-uri  $(getAdditionalConfigValue $ADDITIONAL_SECRETS_DIR oauth-redirect-url)
+                --pre-established-redirect-uri  "$(getAdditionalConfigValue $ADDITIONAL_SECRETS_DIR gate-base-url)/login"
 
 $HAL_COMMAND config security authn oauth2 enable

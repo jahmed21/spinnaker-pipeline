@@ -6,6 +6,8 @@ substitutions:
   _CLOUDSDK_CONTAINER_CLUSTER: ea-cd-gke
   _CLOUDSDK_COMPUTE_REGION: australia-southeast1
   _OAUTH2_ENABLED: 'true'
+  _OAUTH2_JSON_NAME: 'google-oauth-client-secret.json'
+  _GATE_BASE_URL: 'http://spinnaker.gcp.anz.com:8084/'
   _PUBSUB_ENABLED: 'true'
   _PUBSUB_SUBSCRIPTION_NAME: 'spin-pipeline-trigger'
   _GCS_SA_KEY_JSON_NAME: 'spinnaker-gcs-sa-key.json'
@@ -23,7 +25,7 @@ steps:
     OPTIONAL_PARAMS=""
 
     [[ "${_OAUTH2_ENABLED}" == "true" ]] && \
-      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --oauth2-client-id $$OAUTH2_CLIENT_ID --oauth2-client-secret $$OAUTH2_CLIENT_SECRET"
+      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --oauth2-json-name ${_OAUTH2_JSON_NAME} --gate-base-url ${_GATE_BASE_URL}"
 
     [[ "${_PUBSUB_ENABLED}" == "true" ]] && \
       OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --pubsub-subscription ${_PUBSUB_SUBSCRIPTION_NAME} --pubsub-sa-key-json-name ${_PUBSUB_SA_KEY_JSON_NAME}"
@@ -37,8 +39,6 @@ steps:
   - 'GCLOUD_PROJECT=${_CD_PROJECT_ID}'
   - 'CLOUDSDK_COMPUTE_REGION=${_CLOUDSDK_COMPUTE_REGION}'
   - 'CLOUDSDK_CONTAINER_CLUSTER=${_CLOUDSDK_CONTAINER_CLUSTER}'
-  - 'OAUTH2_CLIENT_ID=${_OAUTH2_CLIENT_ID}'
-  - 'OAUTH2_CLIENT_SECRET=${_OAUTH2_CLIENT_SECRET}'
   - 'TILLERLESS=true'
 timeout: 1800s
 tags: ['spinnaker']

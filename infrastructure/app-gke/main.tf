@@ -24,5 +24,5 @@ module "app-gke" {
   cluster_service_account = "${format("%s-compute@developer.gserviceaccount.com", data.google_project.this_projecct.number)}"
   node_instance_type      = "n1-standard-1"
   max_node_count          = "1"
-  kubernetes_version      = "${data.google_container_engine_versions.gke_versions.latest_master_version}"
+  kubernetes_version      = "1.10.6-gke.2"
 }

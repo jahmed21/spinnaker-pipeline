@@ -3,15 +3,14 @@
 set -eo pipefail
 
 declare -A OPTS=(
-                      ["project:"]="Project Id of the Spinnaker deployment project"
-            ["helm-release-name:"]="Helm release name"
-                ["chart-version:"]="Spinnaker chart version (default to 1.1.4)"
-             ["oauth2-json-name:"]="Google OAUTH2 client secret json file"
-                ["gate-base-url:"]="Gate override base url"
-          ["pubsub-subscription:"]="Name of the pubsub subscription to be used by spinnaker"
-      ["pubsub-sa-key-json-name:"]="Name of the pubusb key json file stored in project's halyard-config bucket"
-         ["gcs-sa-key-json-name:"]="Name of the gcs key json file stored in project's halyard-config bucket"
-                         ["clean"]="Uninstall previous helm installation first"
+                       ["project:"]="Project Id of the Spinnaker deployment project"
+             ["helm-release-name:"]="Helm release name"
+                 ["chart-version:"]="Spinnaker chart version (default to 1.1.4)"
+              ["oauth2-json-name:"]="Google OAUTH2 client secret json file"
+                 ["gate-base-url:"]="Gate override base url"
+           ["pubsub-subscription:"]="Name of the pubsub subscription to be used by spinnaker"
+["spinnaker-gcp-sa-key-json-name:"]="Spinnaker GCP SA key json file stored in project's halyard-config bucket"
+                          ["clean"]="Uninstall previous helm installation first"
       )
 
 function usage() {
@@ -45,8 +44,7 @@ _OAUTH2_JSON_NAME=""
 _CLEAN=false
 _PUBSUB_SUBSCRIPTION_NAME=""
 _CHART_VERSION="1.1.4"
-_GCS_SA_KEY_JSON_NAME=""
-_PUBSUB_SA_KEY_JSON_NAME=""
+_SPINNAKER_GCP_SA_KEY_JSON_NAME=""
 _GATE_BASE_URL=""
 
 VALUES_FILE=values-updated.yaml
@@ -60,15 +58,14 @@ while true ; do
     --gate-base-url) _GATE_BASE_URL=$2; shift 2;;
     --pubsub-subscription) _PUBSUB_SUBSCRIPTION_NAME=$2; shift 2;;
     --chart-version) _CHART_VERSION=$2; shift 2;;
-    --pubsub-sa-key-json-name) _PUBSUB_SA_KEY_JSON_NAME=$2; shift 2;;
-    --gcs-sa-key-json-name) _GCS_SA_KEY_JSON_NAME=$2; shift 2;;
+    --spinnaker-gcp-sa-key-json-name) _SPINNAKER_GCP_SA_KEY_JSON_NAME=$2; shift 2;;
     --clean) _CLEAN=true; shift ;;
 	  --) shift ; break ;;
 	  *) echo "Internal error!" ; usage ;;
 	esac
 done
 
-if [[ ! -z "$*" || -z "$_CD_PROJECT_ID" || -z "${_GCS_SA_KEY_JSON_NAME}" ]]; then
+if [[ ! -z "$*" || -z "$_CD_PROJECT_ID" || -z "${_SPINNAKER_GCP_SA_KEY_JSON_NAME}" ]]; then
    usage
 fi
 
@@ -82,8 +79,7 @@ echo " Spinnaker Chart Version: $_CHART_VERSION"
 echo "        OAuth2 JSON Name: $_OAUTH2_JSON_NAME"
 echo "           Gate Base URL: $_GATE_BASE_URL"
 echo "PubSub Subscription Name: $_PUBSUB_SUBSCRIPTION_NAME"
-echo " PubSub SA Key JSON Name: $_PUBSUB_SA_KEY_JSON_NAME"
-echo "    GCS SA Key JSON Name: $_GCS_SA_KEY_JSON_NAME"
+echo "    GCP SA Key JSON Name: $_SPINNAKER_GCP_SA_KEY_JSON_NAME"
 echo "                   Clean: $_CLEAN"
 echo
 
@@ -160,31 +156,28 @@ function invokeHelm() {
     --values ${VALUES_FILE}
 }
 
+function configureDockerRegistryPassword() {
+  local values_file=$1
+  yq w -i $values_file "dockerRegistries[0].password"  \
+      "$(gsutil cat gs://${_CD_PROJECT_ID}-halyard-config/${_SPINNAKER_GCP_SA_KEY_JSON_NAME})"
+}
+
+function configureGCSStorage() {
+  local values_file=$1
+  yq w -i $values_file "gcs.jsonKey"  \
+      "$(gsutil cat gs://${_CD_PROJECT_ID}-halyard-config/${_SPINNAKER_GCP_SA_KEY_JSON_NAME})"
+  yq w -i $values_file "gcs.project" "${_CD_PROJECT_ID}"
+  yq w -i $values_file "gcs.bucket"  "${_CD_PROJECT_ID}-spinnaker-config"
+}
+
 # Main logic starts here
 
 cp values.yaml $VALUES_FILE
 
-# Configure additionalScripts
-configureAdditionalScripts  $VALUES_FILE  gcs-config.sh
-configureAdditionalScripts  $VALUES_FILE  debug-config.sh
-configureAdditionalScripts  $VALUES_FILE  remove-dummy-registry.sh
-
-# Configure halyard-app-config.sh as additionalConfigMaps
-configureAdditionalConfigFile  $VALUES_FILE  halyard-app-config.sh
-
-# Configure spinnaker-local.yml as additionalConfigMaps
-configureAdditionalConfigFile  $VALUES_FILE  spinnaker-local.yml
-
 # Copy gcs key from halyard-config bucket into additionSecrets
-configureHalyardConfigSecret $VALUES_FILE  "gcs.json"  $_GCS_SA_KEY_JSON_NAME
-
-# Copy pubsub key from halyard-config bucket into additionSecrets
-if [[ ! -z "$_PUBSUB_SA_KEY_JSON_NAME" ]]; then
-  configureHalyardConfigSecret $VALUES_FILE  "pubsub.json"  $_PUBSUB_SA_KEY_JSON_NAME
-fi
+configureHalyardConfigSecret $VALUES_FILE  "spinnaker-gcp-sa-access-key.json"  $_SPINNAKER_GCP_SA_KEY_JSON_NAME
 
 # Create OAuth Client Id & Secret as additionalSecrets
-
 if [[ ! -z "${_OAUTH2_JSON_NAME}" ]]; then
   configureAdditionalScripts  $VALUES_FILE  oauth-config.sh
   configOAuthSecrets $VALUES_FILE  "oauth-client-id"  \
@@ -202,5 +195,18 @@ if [[ ! -z "$_PUBSUB_SUBSCRIPTION_NAME" ]]; then
   configureAdditionalScripts  $VALUES_FILE  pubsub-config.sh
   configureAdditionalConfigs  $VALUES_FILE  "pubsub-subscription-name"  "${_PUBSUB_SUBSCRIPTION_NAME}"
 fi
+
+# Configure spinnaker-local.yml as additionalConfigMaps
+configureAdditionalConfigFile  $VALUES_FILE  spinnaker-local.yml
+
+# Configure additionalScripts
+configureAdditionalScripts  $VALUES_FILE  debug-config.sh
+
+# Configure halyard-app-config.sh as additionalConfigMaps
+configureAdditionalConfigFile  $VALUES_FILE  halyard-app-config.sh
+
+configureDockerRegistryPassword $VALUES_FILE
+
+configureGCSStorage $VALUES_FILE
 
 invokeHelm

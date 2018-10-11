@@ -1,5 +1,6 @@
 locals {
-  project_id = "app-service-123"
+  project_id = "app-project-002"
+  region     = "australia-southeast1"
 }
 
 data "google_project" "this_projecct" {
@@ -8,7 +9,7 @@ data "google_project" "this_projecct" {
 
 data "google_compute_zones" "gke_zones" {
   project = "${local.project_id}"
-  region  = "${var.region}"
+  region  = "${local.region}"
 }
 
 data "google_container_engine_versions" "gke_versions" {
@@ -19,7 +20,7 @@ data "google_container_engine_versions" "gke_versions" {
 module "app-gke" {
   source                  = "../modules/gke-cluster"
   name                    = "ea-app-gke"
-  region                  = "${var.region}"
+  region                  = "${local.region}"
   project_id              = "${local.project_id}"
   cluster_service_account = "${format("%s-compute@developer.gserviceaccount.com", data.google_project.this_projecct.number)}"
   node_instance_type      = "n1-standard-1"

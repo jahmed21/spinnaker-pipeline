@@ -22,11 +22,11 @@ halyard:
 
 #Configure your Docker registries here
 dockerRegistries:
-- name: dummy
-  address: https://gcr.io
-#  username: _json_key
-#  password: ''
-#  email: 1234@5678.com
+- name: asia-gcr
+  address: https://asia.gcr.io
+  username: _json_key
+  password: ''
+  email: 1234@5678.com
 #  repositories:
 #  - ea_paas
 
@@ -95,7 +95,7 @@ minio:
   enabled: false
 
 gcs:
-  enabled: false
+  enabled: true
   project: ""
   bucket: ""
   jsonKey: ''

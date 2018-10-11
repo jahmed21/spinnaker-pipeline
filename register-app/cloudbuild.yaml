@@ -1,12 +1,12 @@
 substitutions:
   _WORKING_DIR: .
   _EX_GKE_CLUSTER: ea-cd-gke
-  _EX_PROJECT_ID: cd-pipeline-2
+  _EX_PROJECT_ID: cd-project-002
   _REGION: australia-southeast1
   _APP_GKE_CLUSTER: ea-app-gke
-  _APP_PROJECT_ID: app-service-123
+  _APP_PROJECT_ID: app-project-002
   _HELM_VERSION: v2.11.0
-  _BUCKET_URL: gs://pipeline-integration-app-service-123/
+  _BUCKET_URL: app-project-002-spinnaker-artifacts
   _PUBLISH_TOPIC: spin-pipeline
 steps:
 - name: asia.gcr.io/$PROJECT_ID/cloud-builders-community-helm:${_HELM_VERSION}

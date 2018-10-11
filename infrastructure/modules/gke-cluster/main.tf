@@ -15,14 +15,13 @@
 resource "google_container_cluster" "cluster" {
   name    = "${var.name}"
   region  = "${var.region}"
-  project = "${data.google_project.service_project.project_id}"
+  project = "${var.project_id}"
 
   # Private GKE
   #private_cluster        = true
   #master_ipv4_cidr_block = "${var.master_ipv4_cidr_block}"
 
   # Optional binary authorization
-  enable_binary_authorization = "${var.enable_binary_authorization}"
   min_master_version = "${var.kubernetes_version}"
   node_version       = "${var.kubernetes_version}"
   # Set a maintenance window

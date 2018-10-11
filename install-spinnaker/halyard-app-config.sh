@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 
-# This script is copied to halyard pod by helm install script (install-spinnaker.sh)
-# Invoked by register-app cloudbuild (register-app.sh), to configure halyard with application details (docker-registry and  kubeconfig)
+# Invoked by register-app cloudbuild (register-app.sh), to configure halyard with application's kubeconfig
 
 set -eo pipefail
-
 
 function configFile() {
   mkdir -p /home/spinnaker/.hal/app-config
@@ -40,70 +38,11 @@ function getCommandForAccount() {
   fi
 }
 
-function getCommandForArtifactAccount() {
-  local accountType=$1
-  local accountName=$2
-
-  if hal config artifact "$accountType" account get "$accountName" >/dev/null 2>&1; then
-    echo "edit"
-  else
-    echo "add"
-  fi
-}
-function configureDockerRegistryAccount() {
-  local configName=$1
-  local server=$(getDataFromSecret $configName "server")
-  local email=$(getDataFromSecret $configName "email")
-  local bucket=$(getDataFromSecret $configName "bucket")
-
-  local repositories=$(getDataFromSecret $configName "repositories")
-  local repo_param=""
-  if [[ ! -z "$repositories" ]]; then
-    repo_param="--repositories $repositories"
-  fi
-
-  local passwordFile=$(configFile ${configName}.password)
-  getDataFromSecret $configName "password" | tr -d '\n' > $passwordFile
-
-  echoAndExec hal config provider docker-registry account \
-        $(getCommandForAccount docker-registry "$configName") \
-        "$configName" \
-        --address "$server" \
-        --username "_json_key" \
-        --email "$email" \
-        --password-file $passwordFile $repo_param
-
-  # if the manifest's are stored in GCS bucket, create a GCS account for spinnaker to retrieve them
-  if [[ ! -z "$bucket" ]]; then
-    local accountName="${configName}-gcs"
-    echoAndExec hal config artifact gcs account \
-          $(getCommandForArtifactAccount gcs "$accountName") \
-          "$accountName" \
-          --json-path $passwordFile
-    echoAndExec hal config artifact gcs enable
-  fi
-}
-
-function processDockerRegistryAccounts() {
-  if local secretList=$(kubectl get secret --selector paas.ex.anz.com/type=dockerconfigjson -o=jsonpath='{.items[*].metadata.name}'); then
-    for aSecret in $secretList; do
-      echo "Processing docker-registry account '$aSecret'"
-      configureDockerRegistryAccount $aSecret
-    done
-  fi
-}
-
 function configureKubernetesAccount() {
   local configName=$1
 
   local appClusterName=$(getLabelFromSecret $configName "paas.ex.anz.com/cluster")
   local appProjectId=$(getLabelFromSecret $configName "paas.ex.anz.com/project")
-  local registries=$(kubectl get secret --selector paas.ex.anz.com/type=dockerconfigjson,paas.ex.anz.com/cluster=$appClusterName -o=jsonpath='{.items[*].metadata.name}' \
-                        | tr -s '[:blank:][:space:]' ',,')
-  local reg_param=""
-  if [[ ! -z "$registries" ]]; then
-    reg_param="--docker-registries $registries"
-  fi
 
   local kubeconfigFile=$(configFile ${appProjectId}-${appClusterName}.kubeconfig)
   getDataFromSecret $configName "kubeconfig" > $kubeconfigFile
@@ -115,7 +54,7 @@ function configureKubernetesAccount() {
             "$account_name" \
             --kubeconfig-file $kubeconfigFile \
             --omit-namespaces=kube-system,kube-public \
-            --provider-version v2 $reg_param
+            --provider-version v2
 }
 
 function processKubernetesAccounts() {
@@ -127,7 +66,8 @@ function processKubernetesAccounts() {
   fi
 }
 
-processDockerRegistryAccounts
+echo
+
 processKubernetesAccounts
 
 # Apply  the config changes

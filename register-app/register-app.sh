@@ -39,7 +39,7 @@ _APP_CLUSTER=""
 _APP_PROJECT_ID=""
 _APP_NAMESPACE="kube-system"
 _APP_CLUSTER_SA_NAME="ex-spinnaker"
-_BUCKET_URL=""
+_BUCKET=""
 _PUBLISH_TOPIC=""
 
 _APP_CLUSTER_KUBECONTEXT=""
@@ -53,7 +53,7 @@ while true ; do
     --app-project-id) _APP_PROJECT_ID=$2; shift 2;;
     --region) _REGION=$2; shift 2;;
     --sa-name) _APP_CLUSTER_SA_NAME=$2; shift 2;;
-    --bucket) _BUCKET_URL=$2 ; shift 2 ;;
+    --bucket) _BUCKET=$2 ; shift 2 ;;
     --publish-topic) _PUBLISH_TOPIC=$2 ; shift 2 ;;
 	  --) shift ; break ;;
 	  *) echo "Internal error!" ; usage ;;
@@ -79,7 +79,7 @@ echo "  Spinnaker Namespace: $_SPIN_NAMESPACE"
 echo "Application ProjectId: $_APP_PROJECT_ID"
 echo "  Application Cluster: $_APP_CLUSTER"
 echo "  Application SA Name: $_APP_CLUSTER_SA_NAME"
-echo "           Bucket URL: $_BUCKET_URL"
+echo "           Bucket URL: $_BUCKET"
 echo "        Publish Topic: $_PUBLISH_TOPIC"
 echo
 
@@ -210,59 +210,14 @@ function createKubeConfigInSpinCluster() {
   spinClusterKubectl apply -f $spin_secret_file
 }
 
-function getDockerConfigSecretNameFromAppCluster() {
-  appClusterKubectl get secret \
-      --field-selector type=kubernetes.io/dockerconfigjson \
-      --selector paas.ex.anz.com/project=${_SPIN_PROJECT_ID},paas.ex.anz.com/cluster=${_SPIN_CLUSTER} \
-      -o=jsonpath='{.items[*].metadata.name}'
-}
-
-function createDockerConfigSecretInSpinCluster() {
-  local hcScript=$(tempFile  halyard-config)
-
-  if local secretList="$(getDockerConfigSecretNameFromAppCluster)"; then
-    for dcSecret in $secretList
-    do
-      local docker_server=$(appClusterKubectl get secret $dcSecret --output='jsonpath={.data.\.dockerconfigjson}' | base64 --decode | jq -Mr '.auths | to_entries[] | .key')
-      local email=$(appClusterKubectl get secret $dcSecret --output='jsonpath={.data.\.dockerconfigjson}' | base64 --decode | jq -Mr '.auths | to_entries[] | .value.email')
-      local repo_list=$(appClusterKubectl get secret $dcSecret --output='jsonpath={.metadata.annotations.paas\.ex\.anz\.com/repositories}' | tr -s '[:blank:][:space:]' ',,')
-      local bucket=$(appClusterKubectl get secret $dcSecret --output='jsonpath={.metadata.annotations.paas\.ex\.anz\.com/bucket}')
-      local password_file=$(tempFile ${dcSecret}.passwd)
-      appClusterKubectl get secret $dcSecret --output='jsonpath={.data.\.dockerconfigjson}' | base64 --decode | jq -Mr '.auths | to_entries[] | .value.password' > $password_file
-      local sec_name=$(echo "${_APP_PROJECT_ID}-${_APP_CLUSTER}-${dcSecret}" | tr -s '[:punct:]' '-')
-
-      echo
-      echo "About to create dockerconfigjson secret '$sec_name' in $_SPIN_CLUSTER cluster"
-      local spin_secret_file=$(tempFile spin-secret)
-      spinClusterKubectl create secret generic "$sec_name" \
-        --from-file=password="$password_file" \
-        --from-literal=server="$docker_server" \
-        --from-literal=email="$email" \
-        --from-literal=repositories="$repo_list" \
-        --from-literal=bucket="$bucket" \
-        --dry-run -o yaml \
-        | yq w - 'metadata.labels.[paas.ex.anz.com/cluster]' "$_APP_CLUSTER" \
-        | yq w - 'metadata.labels.[paas.ex.anz.com/project]' "$_APP_PROJECT_ID" \
-        | yq w - 'metadata.labels.[paas.ex.anz.com/type]' "dockerconfigjson" \
-        | yq w - 'metadata.labels.[paas.ex.anz.com/secret-name]' "$dcSecret" \
-        > $spin_secret_file
-
-      # validate the config file
-      kubeval $spin_secret_file
-
-      spinClusterKubectl apply -f $spin_secret_file
-    done
-  fi
-}
-
 function setupPublisher() {
-  if [[ -z "$_BUCKET_URL" || -z "$_PUBLISH_TOPIC" ]]; then
+  if [[ -z "$_BUCKET" || -z "$_PUBLISH_TOPIC" ]]; then
     echo "Publisher not enabled"
     return 0
   fi
 
   echo "GCS notification setup..."
-  echoAndExec gsutil notification create -p ${_APP_PROJECT_ID} -f json -t projects/${_SPIN_PROJECT_ID}/topics/${_PUBLISH_TOPIC}  ${_BUCKET_URL}
+  echoAndExec gsutil notification create -f json -t projects/${_SPIN_PROJECT_ID}/topics/${_PUBLISH_TOPIC}  gs://${_BUCKET}
 }
 
 function invokeHalyardAppConfigScript() {
@@ -276,8 +231,6 @@ function invokeHalyardAppConfigScript() {
   fi
 
   echo
-  echo
-  echo
   echo "Executing halyard-app-config.sh in $halyard_pod_name"
   echo
   spinClusterKubectl exec $halyard_pod_name -- bash /opt/halyard/additionalConfigMaps/halyard-app-config.sh
@@ -288,5 +241,4 @@ getKubeContext
 createAppServiceAccount
 setupPublisher
 createKubeConfigInSpinCluster
-createDockerConfigSecretInSpinCluster
 invokeHalyardAppConfigScript

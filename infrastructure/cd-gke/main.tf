@@ -1,27 +1,18 @@
 locals {
-  project_id             = "cd-pipeline-2"
+  project_id             = "cd-project-002"
   spinnaker_gcs_sa_name  = "spinnaker-gcs-sa"
-  spinnaker_gcs_key_name = "spinnaker-gcs-sa-key.json"
+  spinnaker_gcs_key_name = "spinnaker-gcs-access-key.json"
+  region                 = "australia-southeast1"
 }
 
 data "google_project" "this_projecct" {
   project_id = "${local.project_id}"
 }
 
-data "google_compute_zones" "gke_zones" {
-  project = "${local.project_id}"
-  region  = "${var.region}"
-}
-
-data "google_container_engine_versions" "gke_versions" {
-  project = "${local.project_id}"
-  zone    = "${data.google_compute_zones.gke_zones.names[0]}"
-}
-
 module "cd-gke" {
   source                  = "../modules/gke-cluster"
   name                    = "ea-cd-gke"
-  region                  = "${var.region}"
+  region                  = "${local.region}"
   project_id              = "${local.project_id}"
   cluster_service_account = "${format("%s-compute@developer.gserviceaccount.com", data.google_project.this_projecct.number)}"
   node_instance_type      = "n1-standard-4"
@@ -33,7 +24,7 @@ module "cd-gke" {
 resource "google_storage_bucket" "spinnaker_config" {
   project       = "${local.project_id}"
   name          = "${local.project_id}-spinnaker-config"
-  location      = "${var.region}"
+  location      = "${local.region}"
   storage_class = "REGIONAL"
   force_destroy = "true"
 }
@@ -41,7 +32,7 @@ resource "google_storage_bucket" "spinnaker_config" {
 resource "google_storage_bucket" "halyard_config" {
   project       = "${local.project_id}"
   name          = "${local.project_id}-halyard-config"
-  location      = "${var.region}"
+  location      = "${local.region}"
   storage_class = "REGIONAL"
   force_destroy = "true"
 }
@@ -82,12 +73,12 @@ resource "google_storage_bucket_iam_member" "spinnaker-bucket-access" {
 resource "google_storage_bucket_iam_member" "cloudbuild-access-to-halyard-config-bucket" {
   bucket = "${google_storage_bucket.halyard_config.name}"
   role   = "roles/storage.objectViewer"
-  member = "serviceAccount:${data.google_project.this_projecct.number}@cloudbuild.gserviceaccount.com"
+  member = "serviceAccount:${local.ci_project_number}@cloudbuild.gserviceaccount.com"
 }
 
 # Allow Cloud Build service account create workload in the cluster and create ClusterRoleBinding
 resource "google_project_iam_member" "cloudbuild-access-to-pipeline-gke" {
   project = "${local.project_id}"
   role    = "roles/container.admin"
-  member  = "serviceAccount:${data.google_project.this_projecct.number}@cloudbuild.gserviceaccount.com"
+  member  = "serviceAccount:${local.ci_project_number}@cloudbuild.gserviceaccount.com"
 }

@@ -6,16 +6,14 @@ pipeline:
     source: spinnaker://deploy-manifest
   variables:
     manifest:
-      gcs_url: gs://pipeline-integration-app-service-123/manifests/deploy.yml
-      account: pipeline-integration-app-service-123
+      gcs_url: gs://app-project-002-spinnaker-artifacts/manifests/deploy.yml
     image:
       server: asia.gcr.io
-      org: app-service-123
+      org: ci-project-002
       name: sample-sb
-      account: app-service-123-ea-app-gke-gcr
     cluster:
-      namespace: staging
-      account: app-service-123-ea-app-gke
+      namespace: default
+      account: app-project-002-ea-app-gke
 configuration:
   inherit:
   - concurrentExecutions

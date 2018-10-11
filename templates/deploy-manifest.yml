@@ -8,30 +8,12 @@ metadata:
   scopes:
   - global
 variables:
-- name: gcs_url
-  type: String
-  description: GCS URL of the manifest to be deployed
-- name: docker_server
-  type: String
-  description: Docker server
-- name: docker_repo_org
-  type: String
-  description: Docker orgnaization/namespace (project-id)
-- name: image_name
-  type: String
-  description: Docker image
-- name: k8s_namespace
-  type: String
-  description: Kubernetes namespace
-- name: docker_registry_account
-  type: String
-  description: Docker registry account
-- name: k8s_account
-  type: String
-  description: Kubernetes account
-- name: pubsub_account
-  type: String
-  description: Google Pub/Sub Account
+- name: manifest
+  type: Object
+- name: image
+  type: Object
+- name: cluster
+  type: Object
 configuration:
   concurrentExecutions:
     limitConcurrent: true
@@ -43,12 +25,12 @@ configuration:
     usePriorExecution: false
     matchArtifact:
       kind: gcs
-      name: "{{ gcs_url }}"
+      name: "{{ manifest.gcs_url }}"
       type: gcs/object
     defaultArtifact:
       kind: default.gcs
-      name: "{{ gcs_url }}"
-      reference: "{{ gcs_url }}"
+      name: "{{ manifest.gcs_url }}"
+      reference: "{{ manifest.gcs_url }}"
       type: gcs/object
   - id: dockerImageArtifact
     useDefaultArtifact: false
@@ -56,7 +38,7 @@ configuration:
     usePriorExecution: false
     matchArtifact:
       kind: docker
-      name: "{{ docker_server }}/{{ docker_repo_org }}/{{ image_name }}"
+      name: "{{ image.server }}/{{ image.org }}/{{ image.name }}"
       type: docker/image
     defaultArtifact:
       kind: custom
@@ -64,24 +46,24 @@ configuration:
   - name: namespace
     label: Namespace
     required: true
-    default: "{{ k8s_namespace }}"
+    default: "{{ cluster.namespace }}"
     description: Kubernetes namespace
     hasOptions: false
   triggers:
   - name: gcr-trigger
     type: docker
     enabled: true
-    registry: "{{ docker_server }}"
-    organization: "{{ docker_repo_org }}"
-    repository: "{{ docker_repo_org }}/{{ image_name }}"
-    account: "{{ docker_registry_account }}"
+    registry: "{{ image.server }}"
+    organization: "{{ image.org }}"
+    repository: "{{ image.org }}/{{ image.name }}"
+    account: asia-gcr
     expectedArtifactIds:
     - dockerImageArtifact
   - name: gcs-trigger
     type: pubsub
     enabled: true
     pubsubSystem: google
-    subscriptionName: spin-pipeline
+    subscriptionName: pubsub
     attributeConstraints:
       eventType: OBJECT_FINALIZE
     expectedArtifactIds:
@@ -91,9 +73,9 @@ stages:
   name: Deploy
   type: deployManifest
   config:
-    account: "{{ k8s_account }}"
+    account: "{{ cluster.account }}"
     cloudProvider: kubernetes
-    manifestArtifactAccount: "{{ pubsub_account }}"
+    manifestArtifactAccount: gcs-artifact
     manifestArtifactId: gcsManifestArtifact
     moniker:
       app: "{{ application }}"
@@ -118,11 +100,11 @@ stages:
   dependsOn:
   - manualJudgment
   config:
-    account: "{{ k8s_account }}"
+    account: "{{ cluster.account }}"
     cloudProvider: kubernetes
     kind: deployment
-    location: "{{ k8s_namespace }}"
-    manifestName: "deployment {{ image_name }}"
+    location: "{{ cluster.namespace }}"
+    manifestName: "deployment {{ image.name }}"
     numRevisionsBack: 1
     stageEnabled:
       expression: |

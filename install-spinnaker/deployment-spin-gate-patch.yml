@@ -1,0 +1,10 @@
+spec:
+  template:
+    spec:
+      containers:
+      - name: gate
+        ports:
+        - containerPort: 8084
+          protocol: TCP
+        - containerPort: 8085
+          protocol: TCP

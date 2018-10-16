@@ -3,14 +3,14 @@
 set -eo pipefail
 
 declare -A OPTS=(
-                       ["project:"]="Project Id of the Spinnaker deployment project"
+                       ["project:"]="Project Id of the Spinnaker deployment project (Mandatory)"
              ["helm-release-name:"]="Helm release name"
                  ["chart-version:"]="Spinnaker chart version (default to 1.1.4)"
               ["oauth2-json-name:"]="Google OAUTH2 client secret json file"
                  ["gate-base-url:"]="Gate override base url"
                    ["ui-base-url:"]="UI override base url"
            ["pubsub-subscription:"]="Name of the pubsub subscription to be used by spinnaker"
-["spinnaker-gcp-sa-key-json-name:"]="Spinnaker GCP SA key json file stored in project's halyard-config bucket"
+["spinnaker-gcp-sa-key-json-name:"]="Spinnaker GCP SA key json file stored in project's halyard-config bucket (Mandatory)"
                ["enable-gate-x509"]="X509 Client Auth enabled for Gate (used by roer)"
       )
 
@@ -65,23 +65,30 @@ while true ; do
 	esac
 done
 
-if [[ ! -z "$*" || -z "$_CD_PROJECT_ID" || -z "${_SPINNAKER_GCP_SA_KEY_JSON_NAME}" ]]; then
-   usage
-fi
-
 [[ -z "$_HELM_RELEASE_NAME" ]] && _HELM_RELEASE_NAME="${_CD_PROJECT_ID}-spin"
 
 echo
 echo "---------------- Parameters ------------------"
 echo "              Project Id: $_CD_PROJECT_ID"
+echo "    GCP SA Key JSON Name: $_SPINNAKER_GCP_SA_KEY_JSON_NAME"
 echo "            Release Name: $_HELM_RELEASE_NAME"
 echo " Spinnaker Chart Version: $_CHART_VERSION"
-echo "        OAuth2 JSON Name: $_OAUTH2_JSON_NAME"
 echo "           Gate Base URL: $_GATE_BASE_URL"
 echo "             UI Base URL: $_UI_BASE_URL"
 echo "PubSub Subscription Name: $_PUBSUB_SUBSCRIPTION_NAME"
-echo "    GCP SA Key JSON Name: $_SPINNAKER_GCP_SA_KEY_JSON_NAME"
+echo "        OAuth2 JSON Name: $_OAUTH2_JSON_NAME"
+echo "       Gate X509 Enabled: $_GATE_X509_ENABLED"
 echo
+
+if [[ ! -z "$*" || -z "$_CD_PROJECT_ID" || -z "${_SPINNAKER_GCP_SA_KEY_JSON_NAME}" ]]; then
+   echo "Error. Invalid project id '$_CD_PROJECT_ID' or gcs json name '$_SPINNAKER_GCP_SA_KEY_JSON_NAME'"
+   usage
+fi
+
+if [[ ! -z "$_OAUTH2_JSON_NAME" || $_GATE_X509_ENABLED ]] && [[ -z "$_GATE_BASE_URL" || -z "$_UI_BASE_URL "]]; then
+   echo "Error. Gate and UI base url are mandatory when OAUTH and/or X509 is enabled"
+   usage
+fi
 
 # Done processing command line arguments
 
@@ -199,11 +206,11 @@ function generateDevelopmentX509Certificate() {
   local gate_x509_server_p12_file=gate-x509-server.p12
   local server_subject="/C=AU/ST=VIC/L=Melbourne/O=ANZ/OU=EX/CN=localhost"
 
-  local client_key_password=$jksstorepass
-  local gate_x509_client_key_file=gate-xx590-client.key
-  local gate_x509_client_csr_file=gate-x509-client.csr
-  local gate_x509_client_crt_file=gate-x509-client.crt
-  local client_subject="/C=AU/ST=VIC/L=Melbourne/O=ANZ/OU=EX/CN=client@spinnaker.ex.anz.com"
+  # roer does not support key with passphrase https://github.com/spinnaker/roer/issues/7
+  local roer_key_file=roer.key
+  local roer_csr_file=roer.csr
+  local roer_crt_file=roer.crt
+  local roer_subject="/C=AU/ST=VIC/L=Melbourne/O=ANZ/OU=EX/CN=roer@spinnaker.ex.anz.com"
 
   #
   # CA 
@@ -270,29 +277,26 @@ function generateDevelopmentX509Certificate() {
   #
   # Generate Client Key
   openssl genrsa \
-          -des3 \
-          -passout pass:"$client_key_password" \
-          -out $gate_x509_client_key_file \
+          -out $roer_key_file \
           4096
 
   # Generate a certificate signing request for the server
   openssl req \
           -new \
-          -key $gate_x509_client_key_file \
-          -passin pass:"$client_key_password" \
-          -out $gate_x509_client_csr_file \
-          -subj "$client_subject"
+          -key $roer_key_file \
+          -out $roer_csr_file \
+          -subj "$roer_subject"
 
   # Use the CA to sign the server’s request
   openssl x509 \
           -req \
           -days 365 \
-          -in $gate_x509_client_csr_file \
+          -in $roer_csr_file \
           -CA $gate_x509_ca_crt_file \
           -CAkey $gate_x509_ca_key_file \
           -passin pass:"$ca_key_password" \
           -CAcreateserial \
-          -out $gate_x509_client_crt_file 
+          -out $roer_crt_file 
 
   #
   # Keystore 
@@ -322,7 +326,7 @@ function generateDevelopmentX509Certificate() {
   #Import the client certificate into the keystore
   keytool -import \
           -noprompt \
-          -file $gate_x509_client_crt_file \
+          -file $roer_crt_file \
           -keystore $keystore_file \
           -storepass $jksstorepass  \
           -alias client
@@ -331,11 +335,10 @@ function generateDevelopmentX509Certificate() {
   configureFileAsSecret  $values_file "$gate_x509_ca_key_file"
   configureFileAsSecret  $values_file "$gate_x509_server_crt_file"
   configureFileAsSecret  $values_file "$gate_x509_server_key_file"
-  configureFileAsSecret  $values_file "$gate_x509_client_crt_file"
-  configureFileAsSecret  $values_file "$gate_x509_client_key_file"
+  configureFileAsSecret  $values_file "$roer_crt_file"
+  configureFileAsSecret  $values_file "$roer_key_file"
   configureValueAsSecret $values_file "${gate_x509_ca_key_file}.password"  $ca_key_password
   configureValueAsSecret $values_file "${gate_x509_server_key_file}.password"  $server_key_password
-  configureValueAsSecret $values_file "${gate_x509_client_key_file}.password"  $client_key_password
 }
 
 function configureGateX509Cert() {
@@ -358,15 +361,44 @@ function configureGateX509Cert() {
   yq w -i $gate_local_file "server.ssl.keyStorePassword" $jksstorepass
   yq w -i $gate_local_file "server.ssl.trustStorePassword" $jksstorepass
 
-#  local keystore_file_in_halyard_pod="/opt/halyard/additionalSecrets/$(basename ${keystore_file})"
-#  yq w -i $gate_local_file "server.ssl.keyStore" $keystore_file_in_halyard_pod
-#  yq w -i $gate_local_file "server.ssl.trustStore" $keystore_file_in_halyard_pod
-
   configureFileAsSecret $VALUES_FILE $gate_local_file
 }
 
+function patch() {
+  local type=$1
+  local name=$2
+  local patch_file=$3
+  local json_path=$4
+  local match_str=$5
 
+  echo "About to patch $name $type"
+  declare -i cntr=30
+  while ((cntr--)); do
+    local out=$(kubectl -n ${SPINNAKER_NS} get $type $name  -o=jsonpath=$json_path)
+    if [[ ! -z "$out" ]]; then
+      echo "JSON Path '$json_path' output is '$out'"
+      if echo "$out" | grep -q  "$match_str"; then
+        echo "$name $type already patched"
+      else
+        echo "Patching $name $type"
+        kubectl -n ${SPINNAKER_NS} patch $type $name --patch "$(cat $patch_file)"
+      fi
+      break;
+    fi
+    echo "Waiting for $name $type to be ready....$cntr"
+    sleep 10
+  done
 
+  if [[ $cntr -lt 0 ]]; then
+    echo "Failed to patch $name $type. Timedout...."
+    exit 1
+  fi
+}
+
+function patchGateDeployment() {
+    patch  deployment spin-gate deployment-spin-gate-patch.yml '{.spec.template.spec.containers[].ports[*].containerPort}' 8085
+    patch  service spin-gate service-spin-gate-patch.yml '{.spec.ports[*].port}' 8085
+}
 
 
 # Main logic starts here
@@ -420,8 +452,13 @@ if [[ ! -z "$_UI_BASE_URL" ]]; then
   configureAdditionalScripts  $VALUES_FILE  ui-url-config.sh
   configureAdditionalConfigValue  $VALUES_FILE  "ui-base-url"  "${_UI_BASE_URL}"
 fi
+
 if [[ $_GATE_X509_ENABLED ]]; then
   configureGateX509Cert $VALUES_FILE
 fi
 
 invokeHelm
+
+if [[ $_GATE_X509_ENABLED ]]; then
+  patchGateDeployment
+fi

@@ -5,14 +5,9 @@ set -xeo pipefail
 source /opt/halyard/additionalConfigMaps/common-functions.sh
 
 _KEYSTORE_PATH=$(getSecretFilePath gate-x509.jks)
-_GATE_URL_CONFIG_SCRIPT=/opt/halyard/additionalScripts/gate-url-config.sh
 
-if [[ ! -f $_GATE_URL_CONFIG_SCRIPT ]]; then
-  echo "Error. gate-base-url and ui-base-url are mandatory to enable gate x509"
-  exit 1
-fi
-
-bash $_GATE_URL_CONFIG_SCRIPT
+bash /opt/halyard/additionalScripts/gate-url-config.sh
+bash /opt/halyard/additionalScripts/ui-url-config.sh
 
 $HAL_COMMAND config security api ssl edit \
     --key-alias spinnaker \

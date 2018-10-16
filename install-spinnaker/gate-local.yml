@@ -2,8 +2,8 @@ x509:
   enabled: true
 server:
   ssl:
-    keyStorePassword: changedit
-    trustStorePassword: changedit
+    keyStorePassword: ''
+    trustStorePassword: ''
 default:
   apiPort: 8085
   # Need to enable legacy port due to https://github.com/spinnaker/spinnaker/issues/2533

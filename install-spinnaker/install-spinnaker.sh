@@ -85,7 +85,7 @@ if [[ ! -z "$*" || -z "$_CD_PROJECT_ID" || -z "${_SPINNAKER_GCP_SA_KEY_JSON_NAME
    usage
 fi
 
-if [[ ! -z "$_OAUTH2_JSON_NAME" || $_GATE_X509_ENABLED ]] && [[ -z "$_GATE_BASE_URL" || -z "$_UI_BASE_URL "]]; then
+if [[ ! -z "$_OAUTH2_JSON_NAME" || $_GATE_X509_ENABLED ]] && [[ -z "$_GATE_BASE_URL" || -z "$_UI_BASE_URL" ]]; then
    echo "Error. Gate and UI base url are mandatory when OAUTH and/or X509 is enabled"
    usage
 fi
@@ -172,6 +172,7 @@ function invokeHelm() {
     --namespace ${SPINNAKER_NS} \
     --version  ${_CHART_VERSION} \
     --values ${VALUES_FILE}
+  set +x
 }
 
 function configureDockerRegistryPassword() {

@@ -51,11 +51,15 @@ resource "google_service_account" "spinnaker_gcs" {
 
 # Create service account key for spinnaker storage
 resource "google_service_account_key" "spinnaker_gcs_key" {
+  depends_on = [
+    "google_service_account.spinnaker_gcs"
+  ]
+
   service_account_id = "${google_service_account.spinnaker_gcs.name}"
 }
 
 # Store service account key as bucket object
-resource "google_storage_bucket_object" "spinnaker_gcs_key" {
+resource "google_storage_bucket_object" "spinnaker_gcs_key_store" {
   name         = "${local.spinnaker_gcs_key_name}"
   content      = "${base64decode(google_service_account_key.spinnaker_gcs_key.private_key)}"
   bucket       = "${google_storage_bucket.halyard_config.name}"

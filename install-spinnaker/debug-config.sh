@@ -2,13 +2,7 @@
 
 set -xeo pipefail
 
-ADDITIONAL_CONFIGMAP_DIR="/opt/halyard/additionalConfigMaps"
-
-# Below codes are executed  inside halyard pod
-HALYARD_POD=$(kubectl get po \
-            -l component=halyard,statefulset.kubernetes.io/pod-name \
-            --field-selector status.phase=Running \
-            -o jsonpath="{.items[0].metadata.name}")
+source /opt/halyard/additionalConfigMaps/common-functions.sh
 
 # Enable debug for oauth2 and docker registry related code
 kubectl exec $HALYARD_POD -- bash -c \

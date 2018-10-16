@@ -14,7 +14,7 @@ usage $(basename $0)
   --app-project-id  Project Id of the Application to be integrated with Spinnaker
   --app-cluster     Application GKE Cluster name
   --sa-name         Name of the service account to be created in Application GKE for spinnaker to connect and deploy (default to 'ex-spinnaker')
-  --region          GCP Region (default to 'australia-southeast1')
+  --region          GCP Region (default to 'asia-southeast1')
   --bucket          URL of the GCS Bucket for which notification needs to be enabled
   --publish-topic   Name of the topic where GCS notification will be sent
 EOF
@@ -31,7 +31,7 @@ fi
 # Note the quotes around `$TEMP': they are essential!
 eval set -- "$TEMP"
 
-_REGION="australia-southeast1"
+_REGION="asia-southeast1"
 _SPIN_CLUSTER=""
 _SPIN_PROJECT_ID=""
 _SPIN_NAMESPACE="spinnaker"

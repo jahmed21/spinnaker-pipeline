@@ -1,9 +1,11 @@
 substitutions:
   _WORKING_DIR: .
   _HELM_VERSION: v2.11.0
-  _OAUTH2_ENABLED: 'false'
   _GATE_BASE_URL: ''
+  _UI_BASE_URL: ''
+  _OAUTH2_ENABLED: 'false'
   _PUBSUB_ENABLED: 'false'
+  _GATE_X509_ENABLED: 'false'
   _PUBSUB_SUBSCRIPTION_NAME: 'spin-pipeline-trigger'
   _SPINNAKER_GCP_SA_KEY_JSON_NAME: 'spinnaker-gcs-access-key.json'
   _OAUTH2_JSON_NAME: 'spinnaker-oauth-client.json'
@@ -22,8 +24,18 @@ steps:
     [[ "${_OAUTH2_ENABLED}" == "true" ]] && \
       OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --oauth2-json-name ${_OAUTH2_JSON_NAME} --gate-base-url ${_GATE_BASE_URL}"
 
+    [[ ! -z "${_GATE_BASE_URL}" ]] && \
+      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --gate-base-url ${_GATE_BASE_URL}"
+
+    [[ ! -z "${_UI_BASE_URL}" ]] && \
+      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --ui-base-url ${_UI_BASE_URL}"
+
     [[ "${_PUBSUB_ENABLED}" == "true" ]] && \
       OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --pubsub-subscription ${_PUBSUB_SUBSCRIPTION_NAME}"
+
+    [[ "${_GATE_X509_ENABLED}" == "true" ]] && \
+      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --enable-gate-x509"
+
 
     ./install-spinnaker.sh \
         --project ${_CD_PROJECT_ID} \

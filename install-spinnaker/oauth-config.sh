@@ -2,28 +2,24 @@
 
 set -xeo pipefail
 
-ADDITIONAL_CONFIGMAP_DIR="/opt/halyard/additionalConfigMaps"
-ADDITIONAL_SECRETS_DIR="/opt/halyard/additionalSecrets"
+source /opt/halyard/additionalConfigMaps/common-functions.sh
 
-getAdditionalConfigValue() {
-  local dir=$1
-  local fileName=$2
-  local filePath="${dir}/${fileName}"
-  if [[ -f "$filePath" && -r "$filePath" ]]; then
-    cat "$filePath"
-  fi
-}
+_OAUTH2_CLIENT_ID=$(getSecretValue oauth-client-id)
+_OAUTH2_CLIENT_SECRET=$(getSecretValue oauth-client-secret)
+_GATE_BASE_URL=$(getConfigValue gate-base-url)
+_GATE_URL_CONFIG_SCRIPT=/opt/halyard/additionalScripts/gate-url-config.sh
 
-_OAUTH2_CLIENT_ID="$(getAdditionalConfigValue $ADDITIONAL_SECRETS_DIR oauth-client-id)"
-_OAUTH2_CLIENT_SECRET="$(getAdditionalConfigValue $ADDITIONAL_SECRETS_DIR oauth-client-secret)"
+if [[ ! -f $_GATE_URL_CONFIG_SCRIPT ]]; then
+  echo "Error. gate-base-url is mandatory to enable OAUTH"
+  exit 1
+fi
 
-# Config google oauth
-$HAL_COMMAND config security api edit --override-base-url $(getAdditionalConfigValue $ADDITIONAL_SECRETS_DIR gate-base-url)
+bash $_GATE_URL_CONFIG_SCRIPT
 
 $HAL_COMMAND config security authn oauth2 edit \
                 --client-id ${_OAUTH2_CLIENT_ID} \
                 --client-secret ${_OAUTH2_CLIENT_SECRET} \
                 --provider google \
-                --pre-established-redirect-uri  "$(getAdditionalConfigValue $ADDITIONAL_SECRETS_DIR gate-base-url)/login"
+                --pre-established-redirect-uri  "${_GATE_BASE_URL}/login"
 
 $HAL_COMMAND config security authn oauth2 enable

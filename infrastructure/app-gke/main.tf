@@ -1,6 +1,6 @@
 locals {
   project_id = "app-project-002"
-  region     = "australia-southeast1"
+  region     = "asia-southeast1"
 }
 
 data "google_project" "this_projecct" {

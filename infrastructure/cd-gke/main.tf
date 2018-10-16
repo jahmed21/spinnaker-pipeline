@@ -1,8 +1,8 @@
 locals {
-  project_id             = "cd-project-002"
+  project_id             = "cd-project-004"
   spinnaker_gcs_sa_name  = "spinnaker-gcs-sa"
   spinnaker_gcs_key_name = "spinnaker-gcs-access-key.json"
-  region                 = "australia-southeast1"
+  region                 = "asia-southeast1"
 }
 
 data "google_project" "this_projecct" {
@@ -11,11 +11,11 @@ data "google_project" "this_projecct" {
 
 module "cd-gke" {
   source                  = "../modules/gke-cluster"
-  name                    = "ea-cd-gke"
+  name                    = "${local.project_id}-gke"
   region                  = "${local.region}"
   project_id              = "${local.project_id}"
   cluster_service_account = "${format("%s-compute@developer.gserviceaccount.com", data.google_project.this_projecct.number)}"
-  node_instance_type      = "n1-standard-4"
+  node_instance_type      = "n1-standard-2"
   max_node_count          = "2"
   kubernetes_version      = "1.10.6-gke.2"
 }

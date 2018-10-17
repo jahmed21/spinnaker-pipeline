@@ -1,0 +1,7 @@
+email: 
+attributes:
+  email: 
+  cloudProviders: kubernetes
+  instancePort: 80
+  createTs: "1535624654142"
+  updateTs: "1535624654142"

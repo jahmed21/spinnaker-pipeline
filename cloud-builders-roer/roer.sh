@@ -1,0 +1,191 @@
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+declare -A _OPTS=(
+   ["template-config:"]="Template Config filepath"
+         ["x509-cert:"]="X509 Certificate filepath (default to X509_CERT_FILE environment variable)"
+          ["x509-key:"]="X509 Key filepath (default to X509_KEY_FILE environment variable)"
+     ["spinnaker-api:"]="Spinnaker gate service URL (default to SPINNAKER_API environment variable)"
+          ["app-name:"]="Application Name"
+ ["pipeline-template:"]="Template filepath to be published"
+  )
+
+function usage() {
+  echo
+  echo "usage $(basename $0)  --app-name name --template-config path [--x509-cert-path path] [--x509-key-path path] [--spinnaker-api url] -- command"
+  echo "usage $(basename $0)  --pipeline-template path [--x509-cert-path path] [--x509-key-path path] [--spinnaker-api url] -- command"
+  for opt in "${!_OPTS[@]}"; do
+    local pname=$(echo "$opt" | tr -d ':')
+    printf "  %-25s %s\n" "--${pname}" "${_OPTS[$opt]}"
+  done
+  exit 1
+}
+
+_LONG_OPTS=$(echo "${!_OPTS[@]}" | tr ' ' ',')
+
+# Process command line arguments
+_TEMP=$(getopt -o h --long $_LONG_OPTS -n 'roer.sh' -- "$@")
+if [ $? != 0 ] ; then 
+   echo "Terminating..." >&2 
+   exit 2
+fi
+
+# Note the quotes around `$TEMP': they are essential!
+eval set -- "$_TEMP"
+
+_APP_NAME=""
+_TEMPLATE_CONFIG=""
+_PIPELINE_TEMPLATE=""
+
+while true ; do
+	case "$1" in
+    --app-name) _APP_NAME=$2; _RUN_WITH_PARAM=true; shift 2;;
+    --pipeline-template) _PIPELINE_TEMPLATE=$2; _RUN_WITH_PARAM=true; shift 2;;
+    --template-config) _TEMPLATE_CONFIG=$2; _RUN_WITH_PARAM=true; shift 2;;
+    --x509-cert) X509_CERT_FILE=$2; _RUN_WITH_PARAM=true; shift 2;;
+    --x509-key) X509_KEY_FILE=$2; _RUN_WITH_PARAM=true; shift 2;;
+    --gate-url) SPINNAKER_API=$2; _RUN_WITH_PARAM=true; shift 2;;
+	  --) shift ; break ;;
+    *) echo "Internal error"; usage;;
+	esac
+done
+
+if [[ -z "$X509_CERT_FILE" || -z "$X509_KEY_FILE" || -z "$SPINNAKER_API" ]]; then
+  echo "Error. Invalid x509 cert file '$X509_CERT_FILE' or  key file '$X509_KEY_FILE' or spinnaker api '$SPINNAKER_API'. Either pass as param or set environment variable"
+  usage
+fi
+
+
+# Done processing command line arguments
+
+
+function getCredential() { 
+  # This tries to read environment variables. If not set, it grabs from gcloud
+  local cluster=${CLOUDSDK_CONTAINER_CLUSTER:-$(gcloud config get-value container/cluster 2> /dev/null)}
+  local region=${CLOUDSDK_COMPUTE_REGION:-$(gcloud config get-value compute/region 2> /dev/null)}
+  local zone=${CLOUDSDK_COMPUTE_ZONE:-$(gcloud config get-value compute/zone 2> /dev/null)}
+  local project=${GCLOUD_PROJECT:-$(gcloud config get-value core/project 2> /dev/null)}
+
+  [[ -z "$cluster" || -z "$project" ]] && return 0
+
+  if [ -n "$region" ]; then
+    echo "Running: gcloud config set container/use_v1_api_client false"
+    gcloud config set container/use_v1_api_client false
+    echo "Running: gcloud beta container clusters get-credentials --project=\"$project\" --region=\"$region\" \"$cluster\""
+    gcloud beta container clusters get-credentials --project="$project" --region="$region" "$cluster" 
+  else
+    echo "Running: gcloud container clusters get-credentials --project=\"$project\" --zone=\"$zone\" \"$cluster\""
+    gcloud container clusters get-credentials --project="$project" --zone="$zone" "$cluster" 
+  fi
+}
+
+function checkRoerAuth() {
+  # Try to get spin app (default) to check roer auth and connectivity
+  if ! $ROER_COMMAND app get spin >/dev/null 2>&1; then
+    echo "Error. Invalid Cert/key/api-url. Unable to invoke roer"
+    set -x
+    $ROER_COMMAND app get spin
+    exit 1
+  fi
+}
+
+function makeLocalCopyIfRequired() {
+  local path="$1"
+
+  if ! echo "$path" | grep "^gs://" >/dev/null 2>&1; then
+    echo "$path"
+    return 0
+  fi
+
+  local localpath=${PWD}/$(basename $path)
+  gsutil -q cp $path $localpath
+  echo $localpath
+}
+
+
+function createAppIfNotExist() {
+  local appName=$1
+
+  if [[ -z "$appName" ]]; then
+    echo "Error. Invalid parameter. appName(\$1) is mandatory" >&2
+    return 1
+  fi
+
+  if ! $ROER_COMMAND app get "$appName" >/dev/null 2>&1; then
+    local template_file="${2:-app.yml}"
+    if [[ ! -f $template_file ]]; then
+      template_file=/app.yml
+    fi
+    local email="${3:-${appName}@gcp.anz.com}"
+    yq w -i $template_file email  "$email"
+    yq w -i $template_file attributes.email  "$email"
+    yq w -i $template_file attributes.updateTs $(date +%s000)  
+    yq w -i $template_file attributes.createTs $(date +%s000)  
+
+    echo "Creating app '$appName' using template "
+    cat $template_file
+    $ROER_COMMAND app create $appName $template_file
+  else
+    echo "App '$appName' already exists"
+  fi
+}
+
+function publishPipelineTemplate() {
+  local template_file=$1
+  echo "Publish pipeline template '$template_file'"
+  $ROER_COMMAND pipeline-template publish $template_file
+}
+
+function savePipeline() {
+  local appName=$1
+  local configFile=$2
+
+  echo "Saving pipeline '$configFile' for app '$appName'"
+  $ROER_COMMAND pipeline save $appName $configFile
+}
+
+function getPipelineJSON() {
+  local appName=$1
+  local pipelineName=$2
+  roer pipeline get $appName "$pipelineName" 2>/dev/null
+}
+
+function getPipelineId() {
+  local appName=$1
+  local pipelineName=$2
+  getPipelineJSON $appName "$pipelineName" | jq -Mr .id
+}
+
+# Main logic starts here
+X509_CERT_FILE=$(makeLocalCopyIfRequired $X509_CERT_FILE)
+X509_KEY_FILE=$(makeLocalCopyIfRequired $X509_KEY_FILE)
+ROER_COMMAND="roer --certPath $X509_CERT_FILE --keyPath $X509_KEY_FILE"
+
+# Get GKE credential if specified
+getCredential
+
+# test roer connectivity and cert
+checkRoerAuth
+
+if [[ ! -z "$APP_NAME" && ! -z "$_TEMPLATE_CONFIG" ]]; then
+  createAppIfNotExist $APP_NAME
+  savePipeline $APP_NAME $_TEMPLATE_CONFIG
+fi
+
+if [[ ! -z "$_PIPELINE_TEMPLATE" ]]; then
+  publishPipelineTemplate  $_PIPELINE_TEMPLATE
+fi
+
+if [[ ! -z "$@" ]]; then
+  # Export variable and functions for subshell
+  export ROER_COMMAND
+  declare -f -x createAppIfNotExist
+  declare -f -x savePipeline
+  declare -f -x getPipelineId
+  declare -f -x getPipelineJSON
+  declare -f -x publishPipelineTemplate
+
+  echo "Running comamnds passed as argument [$@]"
+  bash -c "$@"
+fi

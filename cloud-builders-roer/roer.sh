@@ -34,18 +34,18 @@ fi
 # Note the quotes around `$TEMP': they are essential!
 eval set -- "$_TEMP"
 
-_APP_NAME=""
-_TEMPLATE_CONFIG=""
-_PIPELINE_TEMPLATE=""
+APP_NAME=""
+TEMPLATE_CONFIG=""
+PIPELINE_TEMPLATE=""
 
 while true ; do
 	case "$1" in
-    --app-name) _APP_NAME=$2; _RUN_WITH_PARAM=true; shift 2;;
-    --pipeline-template) _PIPELINE_TEMPLATE=$2; _RUN_WITH_PARAM=true; shift 2;;
-    --template-config) _TEMPLATE_CONFIG=$2; _RUN_WITH_PARAM=true; shift 2;;
+    --app-name) APP_NAME=$2; _RUN_WITH_PARAM=true; shift 2;;
+    --pipeline-template) PIPELINE_TEMPLATE=$2; _RUN_WITH_PARAM=true; shift 2;;
+    --template-config) TEMPLATE_CONFIG=$2; _RUN_WITH_PARAM=true; shift 2;;
     --x509-cert) X509_CERT_FILE=$2; _RUN_WITH_PARAM=true; shift 2;;
     --x509-key) X509_KEY_FILE=$2; _RUN_WITH_PARAM=true; shift 2;;
-    --gate-url) SPINNAKER_API=$2; _RUN_WITH_PARAM=true; shift 2;;
+    --spinnaker-api) SPINNAKER_API=$2; _RUN_WITH_PARAM=true; shift 2;;
 	  --) shift ; break ;;
     *) echo "Internal error"; usage;;
 	esac
@@ -123,16 +123,20 @@ function createAppIfNotExist() {
     yq w -i $template_file attributes.updateTs $(date +%s000)  
     yq w -i $template_file attributes.createTs $(date +%s000)  
 
+    echo
     echo "Creating app '$appName' using template "
     cat $template_file
     $ROER_COMMAND app create $appName $template_file
   else
+    echo
     echo "App '$appName' already exists"
   fi
 }
 
 function publishPipelineTemplate() {
   local template_file=$1
+
+  echo
   echo "Publish pipeline template '$template_file'"
   $ROER_COMMAND pipeline-template publish $template_file
 }
@@ -141,8 +145,15 @@ function savePipeline() {
   local appName=$1
   local configFile=$2
 
+  yq w -i $configFile pipeline.application $appName
+
+  echo
+  echo "Validating config file"
+  $ROER_COMMAND pipeline-template plan $configFile
+
+  echo
   echo "Saving pipeline '$configFile' for app '$appName'"
-  $ROER_COMMAND pipeline save $appName $configFile
+  $ROER_COMMAND pipeline save $configFile
 }
 
 function getPipelineJSON() {
@@ -158,6 +169,7 @@ function getPipelineId() {
 }
 
 # Main logic starts here
+export SPINNAKER_API
 X509_CERT_FILE=$(makeLocalCopyIfRequired $X509_CERT_FILE)
 X509_KEY_FILE=$(makeLocalCopyIfRequired $X509_KEY_FILE)
 ROER_COMMAND="roer --certPath $X509_CERT_FILE --keyPath $X509_KEY_FILE"
@@ -168,17 +180,20 @@ getCredential
 # test roer connectivity and cert
 checkRoerAuth
 
-if [[ ! -z "$APP_NAME" && ! -z "$_TEMPLATE_CONFIG" ]]; then
+if [[ ! -z "$APP_NAME" && ! -z "$TEMPLATE_CONFIG" ]]; then
   createAppIfNotExist $APP_NAME
-  savePipeline $APP_NAME $_TEMPLATE_CONFIG
+  savePipeline $APP_NAME $TEMPLATE_CONFIG
 fi
 
-if [[ ! -z "$_PIPELINE_TEMPLATE" ]]; then
-  publishPipelineTemplate  $_PIPELINE_TEMPLATE
+if [[ ! -z "$PIPELINE_TEMPLATE" ]]; then
+  publishPipelineTemplate  $PIPELINE_TEMPLATE
 fi
 
 if [[ ! -z "$@" ]]; then
   # Export variable and functions for subshell
+  export APP_NAME
+  export TEMPLATE_CONFIG
+  export PIPELINE_TEMPLATE
   export ROER_COMMAND
   declare -f -x createAppIfNotExist
   declare -f -x savePipeline
@@ -186,6 +201,7 @@ if [[ ! -z "$@" ]]; then
   declare -f -x getPipelineJSON
   declare -f -x publishPipelineTemplate
 
+  echo
   echo "Running comamnds passed as argument [$@]"
   bash -c "$@"
 fi

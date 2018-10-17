@@ -3,12 +3,11 @@
 set -eo pipefail
 
 declare -A _OPTS=(
+ ["pipeline-template:"]="Template filepath to be published"
    ["template-config:"]="Template Config filepath"
          ["x509-cert:"]="X509 Certificate filepath (default to X509_CERT_FILE environment variable)"
           ["x509-key:"]="X509 Key filepath (default to X509_KEY_FILE environment variable)"
      ["spinnaker-api:"]="Spinnaker gate service URL (default to SPINNAKER_API environment variable)"
-          ["app-name:"]="Application Name"
- ["pipeline-template:"]="Template filepath to be published"
   )
 
 function usage() {
@@ -34,13 +33,11 @@ fi
 # Note the quotes around `$TEMP': they are essential!
 eval set -- "$_TEMP"
 
-APP_NAME=""
 TEMPLATE_CONFIG=""
 PIPELINE_TEMPLATE=""
 
 while true ; do
 	case "$1" in
-    --app-name) APP_NAME=$2; _RUN_WITH_PARAM=true; shift 2;;
     --pipeline-template) PIPELINE_TEMPLATE=$2; _RUN_WITH_PARAM=true; shift 2;;
     --template-config) TEMPLATE_CONFIG=$2; _RUN_WITH_PARAM=true; shift 2;;
     --x509-cert) X509_CERT_FILE=$2; _RUN_WITH_PARAM=true; shift 2;;
@@ -144,22 +141,25 @@ function publishPipelineTemplate() {
 function savePipeline() {
   local appName=$1
   local configFile=$2
-
-  yq w -i $configFile pipeline.application $appName
+  local pipelineName=$(yq r $configFile pipeline.name)
 
   echo
-  echo "Validating config file"
+  echo "Validating config file '$configFile'"
   $ROER_COMMAND pipeline-template plan $configFile
 
   echo
-  echo "Saving pipeline '$configFile' for app '$appName'"
+  echo "Saving pipeline '$pipelineName' for app '$appName' from '$configFile'"
   $ROER_COMMAND pipeline save $configFile
+
+  echo
+  echo "Pipeline '$pipelineName', Id: $(getPipelineId "$appName" "$pipelineName")"
+  getPipelineJSON "$appName" "$pipelineName" | jq -M
 }
 
 function getPipelineJSON() {
   local appName=$1
   local pipelineName=$2
-  roer pipeline get $appName "$pipelineName" 2>/dev/null
+  $ROER_COMMAND pipeline get $appName "$pipelineName" 2>/dev/null
 }
 
 function getPipelineId() {
@@ -180,9 +180,10 @@ getCredential
 # test roer connectivity and cert
 checkRoerAuth
 
-if [[ ! -z "$APP_NAME" && ! -z "$TEMPLATE_CONFIG" ]]; then
-  createAppIfNotExist $APP_NAME
-  savePipeline $APP_NAME $TEMPLATE_CONFIG
+if [[ ! -z "$TEMPLATE_CONFIG" ]]; then
+  APP_NAME=$(yq r $TEMPLATE_CONFIG pipeline.application)
+  createAppIfNotExist "$APP_NAME"
+  savePipeline "$APP_NAME" $TEMPLATE_CONFIG
 fi
 
 if [[ ! -z "$PIPELINE_TEMPLATE" ]]; then
@@ -191,7 +192,6 @@ fi
 
 if [[ ! -z "$@" ]]; then
   # Export variable and functions for subshell
-  export APP_NAME
   export TEMPLATE_CONFIG
   export PIPELINE_TEMPLATE
   export ROER_COMMAND

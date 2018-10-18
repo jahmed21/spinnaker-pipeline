@@ -1,0 +1,27 @@
+substitutions:
+  _WORKING_DIR: .
+  _ROER_VERSION: v0.11.3
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  dir: ${_WORKING_DIR}
+  args: [
+    'build',
+    '--build-arg',
+    'BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"`',
+    '--build-arg',
+    'COMMIT_SHA=$COMMIT_SHA',
+    '--build-arg',
+    'ROER_VERSION=${_ROER_VERSION}',
+    '--build-arg',
+    'PROJECT_ID=${PROJECT_ID}',
+    '--tag=asia.gcr.io/$PROJECT_ID/cloud-builders-roer:${_ROER_VERSION}',
+    '--tag=asia.gcr.io/$PROJECT_ID/cloud-builders-roer:latest',
+    '.'
+  ]
+
+images: ['asia.gcr.io/$PROJECT_ID/cloud-builders-roer:${_ROER_VERSION}',
+         'asia.gcr.io/$PROJECT_ID/cloud-builders-roer:latest']
+tags:
+  - "roer"
+  - "helm"
+  - "tillerless"

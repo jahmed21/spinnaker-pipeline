@@ -112,7 +112,7 @@ function createAppIfNotExist() {
   if ! $ROER_COMMAND app get "$appName" >/dev/null 2>&1; then
     local template_file="${2:-app.yml}"
     if [[ ! -f $template_file ]]; then
-      template_file=/app.yml
+      template_file=/builder/app.yml
     fi
     local email="${3:-${appName}@gcp.anz.com}"
     yq w -i $template_file email  "$email"

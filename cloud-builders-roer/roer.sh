@@ -220,10 +220,11 @@ if [[ ! -z "$@" ]]; then
   export PIPELINE_TEMPLATE
   export ROER_COMMAND
   declare -f -x createAppIfNotExist
+  declare -f -x publishPipelineTemplate
   declare -f -x savePipeline
   declare -f -x getPipelineId
   declare -f -x getPipelineJSON
-  declare -f -x publishPipelineTemplate
+  declare -f -x getApplication
 
   echo
   echo "Running commands passed as argument [$@]"

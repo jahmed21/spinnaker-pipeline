@@ -8,6 +8,7 @@ declare -A _OPTS=(
          ["x509-cert:"]="X509 Certificate filepath (default to X509_CERT_FILE environment variable)"
           ["x509-key:"]="X509 Key filepath (default to X509_KEY_FILE environment variable)"
      ["spinnaker-api:"]="Spinnaker gate service URL (default to SPINNAKER_API environment variable)"
+      ["kubectl-proxy"]="Use kubectl as proxy for connecting to spinnaker gate service"
   )
 
 function usage() {
@@ -35,6 +36,7 @@ eval set -- "$_TEMP"
 
 TEMPLATE_CONFIG=""
 PIPELINE_TEMPLATE=""
+KUBECTL_PROXY=false
 
 while true ; do
 	case "$1" in
@@ -43,19 +45,18 @@ while true ; do
     --x509-cert) X509_CERT_FILE=$2; _RUN_WITH_PARAM=true; shift 2;;
     --x509-key) X509_KEY_FILE=$2; _RUN_WITH_PARAM=true; shift 2;;
     --spinnaker-api) SPINNAKER_API=$2; _RUN_WITH_PARAM=true; shift 2;;
+    --kubectl-proxy) KUBECTL_PROXY=true; shift;;
 	  --) shift ; break ;;
     *) echo "Internal error"; usage;;
 	esac
 done
 
-if [[ -z "$X509_CERT_FILE" || -z "$X509_KEY_FILE" || -z "$SPINNAKER_API" ]]; then
+if [[ -z "$X509_CERT_FILE" || -z "$X509_KEY_FILE" ]] || [[ ! $KUBECTL_PROXY && -z "$SPINNAKER_API" ]]; then
   echo "Error. Invalid x509 cert file '$X509_CERT_FILE' or  key file '$X509_KEY_FILE' or spinnaker api '$SPINNAKER_API'. Either pass as param or set environment variable"
   usage
 fi
 
-
 # Done processing command line arguments
-
 
 function getCredential() { 
   # This tries to read environment variables. If not set, it grabs from gcloud
@@ -78,8 +79,30 @@ function getCredential() {
 }
 
 function checkRoerAuth() {
-  # Try to get spin app (default) to check roer auth and connectivity
-  if ! $ROER_COMMAND app get spin >/dev/null 2>&1; then
+
+  if [[ $KUBECTL_PROXY ]]; then
+    local gate_pod=$(kubectl get pods --namespace spinnaker -l "cluster=spin-gate" -o jsonpath="{.items[0].metadata.name}")
+    if [[ -z "$gate_pod" ]]; then
+      echo "Error. Unable to find gate pod for kubectl port forwarding"
+      exit 1
+    fi
+    echo
+    echo "Kubectl port-forward  8085 -> $gate_pod:8085"
+    kubectl port-forward --namespace spinnaker $gate_pod 8085 >/dev/null &
+    SPINNAKER_API=https://localhost:8085/
+  fi
+
+  export SPINNAKER_API
+
+  declare -i cntr=6
+  while ((cntr--)); do
+    if $ROER_COMMAND app get spin >/dev/null 2>&1; then
+      break
+    fi
+    sleep 10
+  done
+
+  if [[ $cntr -lt 0 ]]; then
     echo "Error. Invalid Cert/key/api-url. Unable to invoke roer"
     set -x
     $ROER_COMMAND app get spin
@@ -112,7 +135,7 @@ function createAppIfNotExist() {
   if ! $ROER_COMMAND app get "$appName" >/dev/null 2>&1; then
     local template_file="${2:-app.yml}"
     if [[ ! -f $template_file ]]; then
-      template_file=/builder/app.yml
+      template_file=/app.yml
     fi
     local email="${3:-${appName}@gcp.anz.com}"
     yq w -i $template_file email  "$email"
@@ -169,7 +192,6 @@ function getPipelineId() {
 }
 
 # Main logic starts here
-export SPINNAKER_API
 X509_CERT_FILE=$(makeLocalCopyIfRequired $X509_CERT_FILE)
 X509_KEY_FILE=$(makeLocalCopyIfRequired $X509_KEY_FILE)
 ROER_COMMAND="roer --certPath $X509_CERT_FILE --keyPath $X509_KEY_FILE"

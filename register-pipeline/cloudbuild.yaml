@@ -14,8 +14,8 @@ steps:
   - deploy-manifest-config.yml
   - --
   - |
-    getApplication sample
-    savePipeline sample deploy-manifest-config.yml
+    getApplication samplesb
+    savePipeline deploy-manifest-config.yml
   env:
   - 'GCLOUD_PROJECT=${_CD_PROJECT_ID}'
   - 'CLOUDSDK_COMPUTE_REGION=${_CLOUDSDK_COMPUTE_REGION}'

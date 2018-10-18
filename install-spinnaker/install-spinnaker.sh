@@ -412,7 +412,10 @@ configureHalyardConfigSecret $VALUES_FILE  "spinnaker-gcp-sa-access-key.json"  $
 # Configure spinnaker-local.yml as additionalConfigMaps
 configureAdditionalConfigFile  $VALUES_FILE  spinnaker-local.yml
 
-# Configure additionalScripts
+# Configure timezone
+configureAdditionalScripts  $VALUES_FILE  timezone.sh
+
+# Configure debug
 configureAdditionalScripts  $VALUES_FILE  debug-config.sh
 
 # Configure halyard-app-config.sh as additionalConfigMaps

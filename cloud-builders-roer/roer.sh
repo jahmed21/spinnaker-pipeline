@@ -133,7 +133,7 @@ function createAppIfNotExist() {
   if ! $ROER_COMMAND app get "$appName" >/dev/null 2>&1; then
     local template_file="${2:-app.yml}"
     if [[ ! -f $template_file ]]; then
-      template_file=/app.yml
+      template_file=/builder/app.yml
     fi
     local email="${3:-${appName}@gcp.anz.com}"
     yq w -i $template_file email  "$email"
@@ -160,8 +160,8 @@ function publishPipelineTemplate() {
 }
 
 function savePipeline() {
-  local appName=$1
-  local configFile=$2
+  local configFile=$1
+  local appName=$(yq r $configFile pipeline.application)
   local pipelineName=$(yq r $configFile pipeline.name)
 
   echo
@@ -174,7 +174,7 @@ function savePipeline() {
 
   echo
   echo "Pipeline '$pipelineName', Id: $(getPipelineId "$appName" "$pipelineName")"
-  getPipelineJSON "$appName" "$pipelineName" | jq -M
+  getPipelineJSON "$appName" "$pipelineName" | jq -M .
 }
 
 function getApplication() {
@@ -206,9 +206,8 @@ getCredential
 checkRoerAuth
 
 if [[ ! -z "$TEMPLATE_CONFIG" ]]; then
-  APP_NAME=$(yq r $TEMPLATE_CONFIG pipeline.application)
-  createAppIfNotExist "$APP_NAME"
-  savePipeline "$APP_NAME" $TEMPLATE_CONFIG
+  createAppIfNotExist "$(yq r $TEMPLATE_CONFIG pipeline.application)"
+  savePipeline $TEMPLATE_CONFIG
 fi
 
 if [[ ! -z "$PIPELINE_TEMPLATE" ]]; then

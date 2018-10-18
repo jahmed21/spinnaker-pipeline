@@ -12,11 +12,6 @@ steps:
   - --kubectl-proxy
   - --pipeline-template
   - deploy-manifest.yml
-  - --
-  - |
-    set -xeo pipefail
-    env 
-    echo hi
   env:
   - 'GCLOUD_PROJECT=${_CD_PROJECT_ID}'
   - 'CLOUDSDK_COMPUTE_REGION=${_CLOUDSDK_COMPUTE_REGION}'

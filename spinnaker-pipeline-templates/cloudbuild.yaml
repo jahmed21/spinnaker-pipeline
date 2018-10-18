@@ -1,0 +1,24 @@
+substitutions:
+  _WORKING_DIR: .
+  _ROER_VERSION: v0.11.3
+steps:
+- name: asia.gcr.io/$PROJECT_ID/cloud-builders-roer:${_ROER_VERSION}
+  dir: ${_WORKING_DIR}
+  args:
+  - --x509-cert
+  - ${_X509_CERT}
+  - --x509-key
+  - ${_X509_KEY}
+  - --kubectl-proxy
+  - --pipeline-template
+  - deploy-manifest.yml
+  - --
+  - |
+    set -xeo pipefail
+    env 
+    echo hi
+  env:
+  - 'GCLOUD_PROJECT=${_CD_PROJECT_ID}'
+  - 'CLOUDSDK_COMPUTE_REGION=${_CLOUDSDK_COMPUTE_REGION}'
+  - 'CLOUDSDK_CONTAINER_CLUSTER=${_CLOUDSDK_CONTAINER_CLUSTER}'
+timeout: 900s

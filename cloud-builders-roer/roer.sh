@@ -68,8 +68,6 @@ function getCredential() {
   [[ -z "$cluster" || -z "$project" ]] && return 0
 
   if [ -n "$region" ]; then
-    echo "Running: gcloud config set container/use_v1_api_client false"
-    gcloud config set container/use_v1_api_client false
     echo "Running: gcloud beta container clusters get-credentials --project=\"$project\" --region=\"$region\" \"$cluster\""
     gcloud beta container clusters get-credentials --project="$project" --region="$region" "$cluster" 
   else
@@ -179,16 +177,21 @@ function savePipeline() {
   getPipelineJSON "$appName" "$pipelineName" | jq -M
 }
 
+function getApplication() {
+  local appName=$1
+  $ROER_COMMAND app get "$appName" 2>/dev/null
+}
+
 function getPipelineJSON() {
   local appName=$1
   local pipelineName=$2
-  $ROER_COMMAND pipeline get $appName "$pipelineName" 2>/dev/null
+  $ROER_COMMAND pipeline get "$appName" "$pipelineName" 2>/dev/null
 }
 
 function getPipelineId() {
   local appName=$1
   local pipelineName=$2
-  getPipelineJSON $appName "$pipelineName" | jq -Mr .id
+  getPipelineJSON "$appName" "$pipelineName" | jq -Mr .id
 }
 
 # Main logic starts here
@@ -224,6 +227,6 @@ if [[ ! -z "$@" ]]; then
   declare -f -x publishPipelineTemplate
 
   echo
-  echo "Running comamnds passed as argument [$@]"
+  echo "Running commands passed as argument [$@]"
   bash -c "$@"
 fi

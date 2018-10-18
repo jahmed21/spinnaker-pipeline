@@ -19,4 +19,4 @@ RUN set -ex \
     && chmod +x /usr/local/bin/roer /builder/roer.sh \
     && SPINNAKER_API=nothing roer --version
 
-ENTRYPOINT ["/builder/roer.bash"]
+ENTRYPOINT ["/builder/roer.sh"]

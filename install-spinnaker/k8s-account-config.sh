@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Invoked by register-app cloudbuild (register-app.sh), to configure halyard with application's kubeconfig
+# Invoked by register-app-job, to configure halyard with application's kubeconfig
 
 set -eo pipefail
 
@@ -10,8 +10,13 @@ function configFile() {
   echo /home/spinnaker/.hal/app-config/${1}
 }
 
+function log() {
+  >&2 echo "$(date):"
+  >&2 echo "$(date): $@"
+}
+
 function echoAndExec() {
-  echo "$@"
+  log "$@"
   eval "$@"
 }
 
@@ -41,14 +46,17 @@ function getCommandForAccount() {
 function configureKubernetesAccount() {
   local configName=$1
 
-  local appClusterName=$(getLabelFromSecret $configName "paas.ex.anz.com/cluster")
+  log "Getting details from secret $configName"
+
   local appProjectId=$(getLabelFromSecret $configName "paas.ex.anz.com/project")
+  local appClusterName=$(getLabelFromSecret $configName "paas.ex.anz.com/cluster")
+  local account_name="$(echo "${appProjectId}-${appClusterName}" | tr -s '[:punct:]' '-')"
 
   local kubeconfigFile=$(configFile ${appProjectId}-${appClusterName}.kubeconfig)
   getDataFromSecret $configName "kubeconfig" > $kubeconfigFile
 
-  local account_name="$(echo "${appProjectId}-${appClusterName}" | tr -s '[:punct:]' '-')"
-  echo "Creating kubernetes account '$account_name'"
+
+  log "Creating kubernetes account '$account_name'"
   echoAndExec hal config provider kubernetes account \
             $(getCommandForAccount kubernetes "$account_name") \
             "$account_name" \
@@ -57,18 +65,9 @@ function configureKubernetesAccount() {
             --provider-version v2
 }
 
-function processKubernetesAccounts() {
-  if local secretList=$(kubectl get secret --selector paas.ex.anz.com/type=kubeconfig -o=jsonpath='{.items[*].metadata.name}'); then
-    for aSecret in $secretList; do
-      echo "Processing kubernetes account '$aSecret'"
-      configureKubernetesAccount $aSecret
-    done
-  fi
-}
-
-echo
-
-processKubernetesAccounts
+for aSecret in "$@"; do
+  configureKubernetesAccount $aSecret
+done
 
 # Apply  the config changes
 hal config

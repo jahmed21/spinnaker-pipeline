@@ -1,0 +1,47 @@
+substitutions:
+  _WORKING_DIR: .
+  _HELM_VERSION: v2.11.0
+  _JOB_IMAGE_VESION: v0.0.1
+  _HELM_RELEASE_NAME: spin-cronjob
+  _SPINNAKER_GCP_SA_KEY_JSON_NAME: spinnaker-gcs-access-key.json
+steps:
+- name: asia.gcr.io/$PROJECT_ID/cloud-builders-community-helm:${_HELM_VERSION}
+  dir: ${_WORKING_DIR}
+  args:
+  - 'bash'
+  - '-c'
+  - |
+    set -xeo pipefail
+    gsutil cp gs://${_CD_PROJECT_ID}-halyard-config/${_SPINNAKER_GCP_SA_KEY_JSON_NAME} .
+
+    helm upgrade ${_HELM_RELEASE_NAME} . \
+      --install \
+      --dry-run \
+      --debug \
+      --namespace spinnaker \
+      --values values.yaml \
+      --set 'jobs[0].name'=configure-k8s-account \
+      --set 'jobs[0].image.repository'=asia.gcr.io/${PROJECT_ID}/configure-spin-k8s-account \
+      --set 'jobs[0].image.tag'=${_JOB_IMAGE_VERSION}  \
+      --set 'jobs[0].schedule'='*/10 * * * *' \
+      --set imageCredentials.registry=https://asia.gcr.io \
+      --set imageCredentials.jsonKeyFile=spinnaker-gcs-access-key.json
+
+    helm upgrade ${_HELM_RELEASE_NAME} . \
+      --install \
+      --debug \
+      --namespace spinnaker \
+      --values values.yaml \
+      --set 'jobs[0].name'=configure-k8s-account \
+      --set 'jobs[0].image.repository'=asia.gcr.io/${PROJECT_ID}/configure-spin-k8s-account \
+      --set 'jobs[0].image.tag'=${_JOB_IMAGE_VERSION}  \
+      --set 'jobs[0].schedule'='*/10 * * * *' \
+      --set imageCredentials.registry=https://asia.gcr.io \
+      --set imageCredentials.jsonKeyFile=spinnaker-gcs-access-key.json
+
+  env:
+  - 'GCLOUD_PROJECT=${_CD_PROJECT_ID}'
+  - 'CLOUDSDK_COMPUTE_REGION=${_CLOUDSDK_COMPUTE_REGION}'
+  - 'CLOUDSDK_CONTAINER_CLUSTER=${_CLOUDSDK_CONTAINER_CLUSTER}'
+  - 'TILLERLESS=true'
+tags: ['spinnaker']

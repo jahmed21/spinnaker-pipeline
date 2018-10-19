@@ -418,8 +418,8 @@ configureAdditionalScripts  $VALUES_FILE  timezone.sh
 # Configure debug
 configureAdditionalScripts  $VALUES_FILE  debug-config.sh
 
-# Configure halyard-app-config.sh as additionalConfigMaps
-configureAdditionalConfigFile  $VALUES_FILE  halyard-app-config.sh
+# Configure k8s-account-config.sh as additionalConfig, this script will be invoked by register-app-job
+configureAdditionalConfigFile  $VALUES_FILE  k8s-account-config.sh
 
 # Configure common-functions.sh as additionalConfigMaps, used by other config scripts
 configureAdditionalConfigFile  $VALUES_FILE  common-functions.sh

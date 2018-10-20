@@ -11,7 +11,7 @@ function configFile() {
 }
 
 function log() {
-  >&2 echo "$(date):"
+  >&2 echo
   >&2 echo "$(date): $@"
 }
 

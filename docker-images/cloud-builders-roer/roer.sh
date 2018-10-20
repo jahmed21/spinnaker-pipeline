@@ -58,6 +58,11 @@ fi
 
 # Done processing command line arguments
 
+function log() {
+  >&2 echo
+  >&2 echo "$(date): $@"
+}
+
 function getCredential() { 
   # This tries to read environment variables. If not set, it grabs from gcloud
   local cluster=${CLOUDSDK_CONTAINER_CLUSTER:-$(gcloud config get-value container/cluster 2> /dev/null)}
@@ -68,10 +73,10 @@ function getCredential() {
   [[ -z "$cluster" || -z "$project" ]] && return 0
 
   if [ -n "$region" ]; then
-    echo "Running: gcloud beta container clusters get-credentials --project=\"$project\" --region=\"$region\" \"$cluster\""
+    log "Running: gcloud beta container clusters get-credentials --project=\"$project\" --region=\"$region\" \"$cluster\""
     gcloud beta container clusters get-credentials --project="$project" --region="$region" "$cluster" 
   else
-    echo "Running: gcloud container clusters get-credentials --project=\"$project\" --zone=\"$zone\" \"$cluster\""
+    log "Running: gcloud container clusters get-credentials --project=\"$project\" --zone=\"$zone\" \"$cluster\""
     gcloud container clusters get-credentials --project="$project" --zone="$zone" "$cluster" 
   fi
 }
@@ -81,11 +86,10 @@ function checkRoerAuth() {
   if [[ $KUBECTL_PROXY ]]; then
     local gate_pod=$(kubectl get pods --namespace spinnaker -l "cluster=spin-gate" -o jsonpath="{.items[0].metadata.name}")
     if [[ -z "$gate_pod" ]]; then
-      echo "Error. Unable to find gate pod for kubectl port forwarding"
+      log "Error. Unable to find gate pod for kubectl port forwarding"
       exit 1
     fi
-    echo
-    echo "Kubectl port-forward  8085 -> $gate_pod:8085"
+    log "Kubectl port-forward  8085 -> $gate_pod:8085"
     kubectl port-forward --namespace spinnaker $gate_pod 8085 >/dev/null &
     SPINNAKER_API=https://localhost:8085/
   fi
@@ -101,7 +105,7 @@ function checkRoerAuth() {
   done
 
   if [[ $cntr -lt 0 ]]; then
-    echo "Error. Invalid Cert/key/api-url. Unable to invoke roer"
+    log "Error. Invalid Cert/key/api-url. Unable to invoke roer"
     set -x
     $ROER_COMMAND app get spin
     exit 1
@@ -117,6 +121,7 @@ function makeLocalCopyIfRequired() {
   fi
 
   local localpath=${PWD}/$(basename $path)
+  log "Getting local copy for $path -> $localpath"
   gsutil -q cp $path $localpath
   echo $localpath
 }
@@ -126,7 +131,7 @@ function createAppIfNotExist() {
   local appName=$1
 
   if [[ -z "$appName" ]]; then
-    echo "Error. Invalid parameter. appName(\$1) is mandatory" >&2
+    log "Error. Invalid parameter. appName(\$1) is mandatory" >&2
     return 1
   fi
 
@@ -141,21 +146,18 @@ function createAppIfNotExist() {
     yq w -i $template_file attributes.updateTs $(date +%s000)  
     yq w -i $template_file attributes.createTs $(date +%s000)  
 
-    echo
-    echo "Creating app '$appName' using template "
+    log "Creating app '$appName' using template "
     cat $template_file
     $ROER_COMMAND app create $appName $template_file
   else
-    echo
-    echo "App '$appName' already exists"
+    log "App '$appName' already exists"
   fi
 }
 
 function publishPipelineTemplate() {
   local template_file=$1
 
-  echo
-  echo "Publish pipeline template '$template_file'"
+  log "Publish pipeline template '$template_file'"
   $ROER_COMMAND pipeline-template publish $template_file
 }
 
@@ -164,16 +166,13 @@ function savePipeline() {
   local appName=$(yq r $configFile pipeline.application)
   local pipelineName=$(yq r $configFile pipeline.name)
 
-  echo
-  echo "Validating config file '$configFile'"
+  log "Validating config file '$configFile'"
   $ROER_COMMAND pipeline-template plan $configFile
 
-  echo
-  echo "Saving pipeline '$pipelineName' for app '$appName' from '$configFile'"
+  log "Saving pipeline '$pipelineName' for app '$appName' from '$configFile'"
   $ROER_COMMAND pipeline save $configFile
 
-  echo
-  echo "Pipeline '$pipelineName', Id: $(getPipelineId "$appName" "$pipelineName")"
+  log "Pipeline '$pipelineName', Id: $(getPipelineId "$appName" "$pipelineName")"
   getPipelineJSON "$appName" "$pipelineName" | jq -M .
 }
 
@@ -226,7 +225,6 @@ if [[ ! -z "$@" ]]; then
   declare -f -x getPipelineJSON
   declare -f -x getApplication
 
-  echo
-  echo "Running commands passed as argument [$@]"
+  log "Running commands passed as argument [$@]"
   bash -c "$@"
 fi

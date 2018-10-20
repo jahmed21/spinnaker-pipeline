@@ -1,6 +1,7 @@
 substitutions:
   _WORKING_DIR: .
   _HELM_VERSION: v2.11.0
+  _JOB_IMAGE_VERSION: v0.0.1
   _GATE_BASE_URL: ''
   _UI_BASE_URL: ''
   _OAUTH2_ENABLED: 'false'
@@ -9,6 +10,7 @@ substitutions:
   _PUBSUB_SUBSCRIPTION_NAME: 'spin-pipeline-trigger'
   _SPINNAKER_GCP_SA_KEY_JSON_NAME: 'spinnaker-gcs-access-key.json'
   _OAUTH2_JSON_NAME: 'spinnaker-oauth-client.json'
+  _CI_PROJECT_NUMBER: ''
 steps:
 - name: asia.gcr.io/$PROJECT_ID/cloud-builders-community-helm:${_HELM_VERSION}
   dir: ${_WORKING_DIR}
@@ -24,18 +26,17 @@ steps:
     [[ "${_OAUTH2_ENABLED}" == "true" ]] && \
       OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --oauth2-json-name ${_OAUTH2_JSON_NAME} --gate-base-url ${_GATE_BASE_URL}"
 
-    [[ ! -z "${_GATE_BASE_URL}" ]] && \
-      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --gate-base-url ${_GATE_BASE_URL}"
-
-    [[ ! -z "${_UI_BASE_URL}" ]] && \
-      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --ui-base-url ${_UI_BASE_URL}"
-
     [[ "${_PUBSUB_ENABLED}" == "true" ]] && \
       OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --pubsub-subscription ${_PUBSUB_SUBSCRIPTION_NAME}"
 
     [[ "${_GATE_X509_ENABLED}" == "true" ]] && \
       OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --enable-gate-x509"
 
+    [[ ! -z "${_GATE_BASE_URL}" ]] && \
+      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --gate-base-url ${_GATE_BASE_URL}"
+
+    [[ ! -z "${_UI_BASE_URL}" ]] && \
+      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --ui-base-url ${_UI_BASE_URL}"
 
     ./install-spinnaker.sh \
         --project ${_CD_PROJECT_ID} \
@@ -47,5 +48,44 @@ steps:
   - 'CLOUDSDK_COMPUTE_REGION=${_CLOUDSDK_COMPUTE_REGION}'
   - 'CLOUDSDK_CONTAINER_CLUSTER=${_CLOUDSDK_CONTAINER_CLUSTER}'
   - 'TILLERLESS=true'
+
+- name: asia.gcr.io/$PROJECT_ID/cloud-builders-community-helm:${_HELM_VERSION}
+  dir: ${_WORKING_DIR}
+  args:
+  - 'bash'
+  - '-c'
+  - |
+    ./create-sa-for-app-register.sh ${_CD_PROJECT_ID} ${_CI_PROJECT_NUMBER}@cloudbuild.gserviceaccount.com
+  env:
+  - 'GCLOUD_PROJECT=${_CD_PROJECT_ID}'
+  - 'CLOUDSDK_COMPUTE_REGION=${_CLOUDSDK_COMPUTE_REGION}'
+  - 'CLOUDSDK_CONTAINER_CLUSTER=${_CLOUDSDK_CONTAINER_CLUSTER}'
+  - 'TILLERLESS=true'
+
+- name: asia.gcr.io/$PROJECT_ID/cloud-builders-community-helm:${_HELM_VERSION}
+  dir: ${_WORKING_DIR}/helm-cronjobs
+  args:
+  - 'bash'
+  - '-c'
+  - |
+    gsutil cp gs://${_CD_PROJECT_ID}-halyard-config/${_SPINNAKER_GCP_SA_KEY_JSON_NAME} .
+
+    helm upgrade ${_HELM_RELEASE_NAME}-cronjob . \
+      --install \
+      --debug \
+      --namespace spinnaker \
+      --values values.yaml \
+      --set 'jobs[0].name'=configure-k8s-account \
+      --set 'jobs[0].image.repository'=asia.gcr.io/${PROJECT_ID}/configure-spin-k8s-account \
+      --set 'jobs[0].image.tag'=${_JOB_IMAGE_VERSION}  \
+      --set 'jobs[0].schedule'='*/10 * * * *' \
+      --set imageCredentials.registry=https://asia.gcr.io \
+      --set imageCredentials.jsonKeyFile=spinnaker-gcs-access-key.json
+  env:
+  - 'GCLOUD_PROJECT=${_CD_PROJECT_ID}'
+  - 'CLOUDSDK_COMPUTE_REGION=${_CLOUDSDK_COMPUTE_REGION}'
+  - 'CLOUDSDK_CONTAINER_CLUSTER=${_CLOUDSDK_CONTAINER_CLUSTER}'
+  - 'TILLERLESS=true'
+
 timeout: 1800s
 tags: ['spinnaker']

@@ -1,5 +1,5 @@
 locals {
-  cd_project_id = "cd-project-004"
+  cd_project_id = "ex-services-pp-18655"
 }
 
 # Give permission to spinnaker service account created in services to check images from launchpad docker registries

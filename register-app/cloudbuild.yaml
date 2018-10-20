@@ -1,7 +1,7 @@
 substitutions:
   _WORKING_DIR: .
-  _EX_GKE_CLUSTER: cd-project-004-gke
-  _EX_PROJECT_ID: cd-project-004
+  _EX_GKE_CLUSTER: ex-services-pp-18655-gke
+  _EX_PROJECT_ID: ex-services-pp-18655
   _REGION: asia-southeast1
   _APP_GKE_CLUSTER: ea-app-gke
   _APP_PROJECT_ID: app-project-002

@@ -33,7 +33,7 @@ EOF
 fi
 
 echo "Running: helm init --client-only"
-helm init --client-only
+helm init --client-only  --history-max 10
 
 # check if repo values provided then add that repo
 if [[ -n $HELM_REPO_NAME && -n $HELM_REPO_URL ]]; then

@@ -91,6 +91,10 @@ if [[ ! -z "$_OAUTH2_JSON_NAME" || $_GATE_X509_ENABLED ]] && [[ -z "$_GATE_BASE_
 fi
 
 # Done processing command line arguments
+function log() {
+  >&2 echo
+  >&2 echo "$(date): $@"
+}
 
 function addDataToValues() {
   local values_file=$1
@@ -99,10 +103,10 @@ function addDataToValues() {
   local dataValue="$4"
 
   if [[ -z "${dataValue}" ]]; then
-    echo "Error. empty value for config '$key'-'$dataName'"
+    log "Error. empty value for config '$key'-'$dataName'"
     exit 1
   fi
-  echo "Configuring '$key'-'$dataName'"
+  log "Configuring '$key'-'$dataName'"
   yq w -i $values_file "halyard.${key}.data.[${dataName}]"  "$dataValue"
 }
 
@@ -118,7 +122,7 @@ function configureHalyardConfigSecret() {
   local keyJSONFileName=$3
   local encodedValue="$(gsutil cat gs://${_CD_PROJECT_ID}-halyard-config/${keyJSONFileName} | base64 --wrap=0)"
   if [[ -z  "$encodedValue" ]]; then
-    echo "Halyard Config '$keyJSONFileName' not found at gs://${_CD_PROJECT_ID}-halyard-config/${keyJSONFileName}"
+    log "Halyard Config '$keyJSONFileName' not found at gs://${_CD_PROJECT_ID}-halyard-config/${keyJSONFileName}"
     exit 1
   fi
   addDataToValues $values_file "additionalSecrets"  $secretName "${encodedValue}"
@@ -129,7 +133,7 @@ function configureFileAsSecret() {
   local filePath=$2
   local encodedValue="$(cat ${filePath} | base64 --wrap=0)"
   if [[ -z  "$encodedValue" ]]; then
-    echo "File '$filePath' not found"
+    log "File '$filePath' not found"
     exit 1
   fi
   addDataToValues $values_file "additionalSecrets"  $(basename $filePath) "${encodedValue}"
@@ -141,7 +145,7 @@ function configureValueAsSecret() {
   local secretValue=$3
 
   if [[ -z "${secretValue}" ]]; then
-    echo "Error. empty secret value for '$secretName'"
+    log "Error. empty secret value for '$secretName'"
     exit 1
   fi
   addDataToValues $values_file "additionalSecrets"  $secretName "$(echo "$secretValue" | base64 --wrap=0)"
@@ -162,8 +166,7 @@ function configureAdditionalConfigFile() {
 
 function invokeHelm() {
   # Replace the placeholders in values.yaml
-  echo
-  echo "Helming now"
+  log "Helming now"
   set -x
   helm upgrade ${_HELM_RELEASE_NAME} stable/spinnaker \
     --install \
@@ -173,6 +176,7 @@ function invokeHelm() {
     --version  ${_CHART_VERSION} \
     --values ${VALUES_FILE}
   set +x
+  log "Finished Helming"
 }
 
 function configureDockerRegistryPassword() {
@@ -336,10 +340,11 @@ function generateDevelopmentX509Certificate() {
   configureFileAsSecret  $values_file "$gate_x509_ca_key_file"
   configureFileAsSecret  $values_file "$gate_x509_server_crt_file"
   configureFileAsSecret  $values_file "$gate_x509_server_key_file"
-  configureFileAsSecret  $values_file "$roer_crt_file"
-  configureFileAsSecret  $values_file "$roer_key_file"
   configureValueAsSecret $values_file "${gate_x509_ca_key_file}.password"  $ca_key_password
   configureValueAsSecret $values_file "${gate_x509_server_key_file}.password"  $server_key_password
+
+  gsutil cp $roer_crt_file gs://${_CD_PROJECT_ID}-app-config/
+  gsutil cp $roer_key_file gs://${_CD_PROJECT_ID}-app-config/
 }
 
 function configureGateX509Cert() {
@@ -372,26 +377,26 @@ function patch() {
   local json_path=$4
   local match_str=$5
 
-  echo "About to patch $name $type"
+  log "About to patch $name $type"
   declare -i cntr=30
   while ((cntr--)); do
     local out=$(kubectl -n ${SPINNAKER_NS} get $type $name  -o=jsonpath=$json_path)
     if [[ ! -z "$out" ]]; then
-      echo "JSON Path '$json_path' output is '$out'"
+      log "JSON Path '$json_path' output is '$out'"
       if echo "$out" | grep -q  "$match_str"; then
-        echo "$name $type already patched"
+        log "$name $type already patched"
       else
-        echo "Patching $name $type"
+        log "Patching $name $type"
         kubectl -n ${SPINNAKER_NS} patch $type $name --patch "$(cat $patch_file)"
       fi
       break;
     fi
-    echo "Waiting for $name $type to be ready....$cntr"
+    log "Waiting for $name $type to be ready....$cntr"
     sleep 10
   done
 
   if [[ $cntr -lt 0 ]]; then
-    echo "Failed to patch $name $type. Timedout...."
+    log "Failed to patch $name $type. Timedout...."
     exit 1
   fi
 }

@@ -1,5 +1,5 @@
 locals {
-  project_id             = "cd-project-004"
+  project_id             = "ex-services-pp-18655"
   spinnaker_gcs_sa_name  = "spinnaker-gcs-sa"
   spinnaker_gcs_key_name = "spinnaker-gcs-access-key.json"
   region                 = "asia-southeast1"
@@ -86,3 +86,19 @@ resource "google_project_iam_member" "cloudbuild-access-to-pipeline-gke" {
   role    = "roles/container.admin"
   member  = "serviceAccount:${local.ci_project_number}@cloudbuild.gserviceaccount.com"
 }
+
+resource "google_storage_bucket" "app-config" {
+  project       = "${local.project_id}"
+  name          = "${local.project_id}-app-config"
+  location      = "${local.region}"
+  storage_class = "REGIONAL"
+  force_destroy = "true"
+}
+
+# Allow Cloud Build service account to read the halyard-config bucket
+resource "google_storage_bucket_iam_member" "cloudbuild-access-to-app-config-bucket" {
+  bucket = "${google_storage_bucket.app-config.name}"
+  role   = "roles/storage.admin"
+  member = "serviceAccount:${local.ci_project_number}@cloudbuild.gserviceaccount.com"
+}
+

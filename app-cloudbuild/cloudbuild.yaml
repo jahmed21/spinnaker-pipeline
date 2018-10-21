@@ -1,6 +1,6 @@
 substitutions:
   _WORKING_DIR: .
-  _SPIN_CLI_VERSION: v0.0.1
+  _EX_SPIN_CLI_VERSION: v0.0.1
   _CLOUDSDK_COMPUTE_REGION: asia-southeast1
   _CD_PROJECT_ID: ex-services-pp-18655
   _CD_CLUSTER: ex-services-pp-18655-gke
@@ -12,7 +12,7 @@ substitutions:
   _MANIFEST_BUCKET_NAME: app-project-002-spinnaker-artifacts
   _SPIN_TOPIC_URI: projects/ex-services-pp-18655/topics/spin-pipeline
 steps:
-- name: asia.gcr.io/$PROJECT_ID/cloud-builders-spin-cli:${_SPIN_CLI_VERSION}
+- name: asia.gcr.io/$PROJECT_ID/cloud-builders-ex-spin-cli:${_EX_SPIN_CLI_VERSION}
   dir: ${_WORKING_DIR}
   args:
   - '--spin-kubeconfig'
@@ -30,7 +30,7 @@ steps:
   - 'CLOUDSDK_CONTAINER_CLUSTER=${_APP_CLUSTER}'
   - 'CLOUDSDK_COMPUTE_REGION=${_CLOUDSDK_COMPUTE_REGION}'
 
-- name: asia.gcr.io/$PROJECT_ID/cloud-builders-spin-cli:${_SPIN_CLI_VERSION}
+- name: asia.gcr.io/$PROJECT_ID/cloud-builders-ex-spin-cli:${_EX_SPIN_CLI_VERSION}
   dir: ${_WORKING_DIR}
   args:
   - '--x509-cert'

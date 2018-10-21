@@ -6,7 +6,7 @@ set +x
 CD_PROJECT_ID=$1
 CLOUDBUILD_SERVICE_ACCOUNT=$2
 K8S_SA_NAME="app-register-sa"
-K8S_SA_NAMESPACE="default"
+SPINNAKER_NAMESPACE="spinnaker"
 
 # Create a temp directory for all files generated during this execution
 MYTMPDIR=$(mktemp -d /tmp/register-app.XXXX)
@@ -60,7 +60,7 @@ EOF_KUBECTL
 
   cat $file
 
-  kubectl -n $K8S_SA_NAMESPACE apply -f $file
+  kubectl -n $SPINNAKER_NAMESPACE apply -f $file
 }
 
 # Create kubeconfig for spinnaker to connect to target app
@@ -68,7 +68,7 @@ function createKubeconfigForSA() {
   local kubeconfig_file=$1
   local secret=""
 
-  if ! secret="$(kubectl -n $K8S_SA_NAMESPACE get serviceaccount $K8S_SA_NAME -o 'jsonpath={.secrets[0].name}' 2>/dev/null)"; then
+  if ! secret="$(kubectl -n $SPINNAKER_NAMESPACE get serviceaccount $K8S_SA_NAME -o 'jsonpath={.secrets[0].name}' 2>/dev/null)"; then
     echo "Secret for serviceaccounts \"$K8S_SA_NAME\" not found." >&2
     exit 2
   fi
@@ -87,16 +87,15 @@ function createKubeconfigForSA() {
   local cluster="$(kubectl config view -o "jsonpath={.contexts[?(@.name==\"$context\")].context.cluster}")"
   local server="$(kubectl config view -o "jsonpath={.clusters[?(@.name==\"$cluster\")].cluster.server}")"
   local ca_crt="$(tempFile ca_crt)"
-  kubectl -n $K8S_SA_NAMESPACE get secret "$secret" -o "jsonpath={.data.ca\.crt}" | base64 -d > $ca_crt
+  kubectl -n $SPINNAKER_NAMESPACE get secret "$secret" -o "jsonpath={.data.ca\.crt}" | base64 -d > $ca_crt
 
   # token
-  local token="$(kubectl -n $K8S_SA_NAMESPACE get secret "$secret" -o "jsonpath={.data.token}" | base64 -d)"
-  local namespace="$K8S_SA_NAMESPACE"
+  local token="$(kubectl -n $SPINNAKER_NAMESPACE get secret "$secret" -o "jsonpath={.data.token}" | base64 -d)"
 
   kubectl --kubeconfig $kubeconfig_file config set-credentials "$K8S_SA_NAME" --token="$token"
   kubectl --kubeconfig $kubeconfig_file config set-cluster "$cluster" --server="$server" --certificate-authority="$ca_crt" --embed-certs
-  kubectl --kubeconfig $kubeconfig_file config set-context "$namespace" --cluster="$cluster" --namespace="$namespace" --user="${K8S_SA_NAME}"
-  kubectl --kubeconfig $kubeconfig_file config use-context "$namespace"
+  kubectl --kubeconfig $kubeconfig_file config set-context "$SPINNAKER_NAMESPACE" --cluster="$cluster" --namespace="$SPINNAKER_NAMESPACE" --user="${K8S_SA_NAME}"
+  kubectl --kubeconfig $kubeconfig_file config use-context "$SPINNAKER_NAMESPACE"
 
   log "Test create"
   kubectl --kubeconfig $kubeconfig_file create secret generic test

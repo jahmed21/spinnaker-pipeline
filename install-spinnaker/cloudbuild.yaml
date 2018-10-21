@@ -1,7 +1,7 @@
 substitutions:
   _WORKING_DIR: .
   _HELM_VERSION: v2.11.0
-  _JOB_IMAGE_VERSION: v0.0.1
+  _JOB_IMAGE_VERSION: v0.0.2
   _GATE_BASE_URL: ''
   _UI_BASE_URL: ''
   _OAUTH2_ENABLED: 'false'

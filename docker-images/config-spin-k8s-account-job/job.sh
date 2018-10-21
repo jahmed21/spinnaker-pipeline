@@ -5,7 +5,6 @@ set -eo pipefail
 declare -A TO_BE_CONFIGURED_MAP
 
 CONFIGMAP_STORAGE_NAME=app-kubeconfig-versions
-SECRET_NAMESPACE=default
 SPINNAKER_NAMESPACE=spinnaker
 
 # Create a temp directory for all files generated during this execution
@@ -24,12 +23,12 @@ function log() {
 function getConfiguredVersion() {
   local secret=$1
 
-  if ! kubectl -n $SECRET_NAMESPACE get configmap $CONFIGMAP_STORAGE_NAME -o=jsonpath='{.metadata.name}' >/dev/null; then
+  if ! kubectl -n $SPINNAKER_NAMESPACE get configmap $CONFIGMAP_STORAGE_NAME -o=jsonpath='{.metadata.name}' >/dev/null; then
     log "Creating configmap storage '$CONFIGMAP_STORAGE_NAME'"
-    kubectl -n $SECRET_NAMESPACE create configmap $CONFIGMAP_STORAGE_NAME >&2
+    kubectl -n $SPINNAKER_NAMESPACE create configmap $CONFIGMAP_STORAGE_NAME >&2
   fi
 
-  local version=$(kubectl -n $SECRET_NAMESPACE get configmap $CONFIGMAP_STORAGE_NAME  -o yaml | yq r - "data.${secret}")
+  local version=$(kubectl -n $SPINNAKER_NAMESPACE get configmap $CONFIGMAP_STORAGE_NAME  -o yaml | yq r - "data.${secret}")
 
   if [[ -z "$version" || $version == null ]]; then
     log "'$secret' Not found in configmap, first time config?"
@@ -43,7 +42,7 @@ function getConfiguredVersion() {
 
 function getVersionFromSecret() {
   local secret=$1
-  local version=$(kubectl -n $SECRET_NAMESPACE get secret "$secret"  -o yaml | yq r - "metadata.resourceVersion" )
+  local version=$(kubectl -n $SPINNAKER_NAMESPACE get secret "$secret"  -o yaml | yq r - "metadata.resourceVersion" )
 
   if [[ -z "$version" ]]; then
     log "Error. Secret'$secret' not found"
@@ -88,7 +87,7 @@ function invokeHalScript() {
 }
 
 function updateVersionInConfgMap() {
-  local configMapYaml=$(kubectl -n $SECRET_NAMESPACE get configmap $CONFIGMAP_STORAGE_NAME  -o yaml)
+  local configMapYaml=$(kubectl -n $SPINNAKER_NAMESPACE get configmap $CONFIGMAP_STORAGE_NAME  -o yaml)
 
   log "ConfigMap content before [$configMapYaml]"
 
@@ -100,13 +99,13 @@ function updateVersionInConfgMap() {
 
   log "ConfigMap content after [$configMapYaml]"
 
-  echo "${configMapYaml}" | kubectl -n $SECRET_NAMESPACE apply -f -
+  echo "${configMapYaml}" | kubectl -n $SPINNAKER_NAMESPACE apply -f -
 }
 
 # Main logic starts here
 
 
-if secretList=$(kubectl -n $SECRET_NAMESPACE get secret --selector paas.ex.anz.com/type=kubeconfig -o=jsonpath='{.items[*].metadata.name}'); then
+if secretList=$(kubectl -n $SPINNAKER_NAMESPACE get secret --selector paas.ex.anz.com/type=kubeconfig -o=jsonpath='{.items[*].metadata.name}'); then
   for aSecret in $secretList; do
     log "Checking kubernetes account '$aSecret' for modification"
     compareVersion $aSecret

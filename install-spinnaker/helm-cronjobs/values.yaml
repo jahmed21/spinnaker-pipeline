@@ -1,6 +1,6 @@
 jobs:
   - image:
-      pullPolicy: Always
+      imagePullPolicy: Always
     failedJobsHistoryLimit: 10
     successfulJobsHistoryLimit: 10
     concurrencyPolicy: Forbid

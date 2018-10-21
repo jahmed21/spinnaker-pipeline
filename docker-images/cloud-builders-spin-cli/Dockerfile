@@ -1,5 +1,6 @@
 ARG PROJECT_ID
 ARG HELM_VERSION=v2.11.0
+
 FROM asia.gcr.io/${PROJECT_ID}/cloud-builders-community-helm:${HELM_VERSION}
 
 ARG BUILD_DATE
@@ -10,13 +11,13 @@ LABEL maintainer="manikandan.natarajan@anz.com" \
       org.label-schema.vcs-ref=$COMMIT_SHA \
       org.label-schema.build-date=$BUILD_DATE
 
-COPY app.yml roer.sh roer-${ROER_VERSION}.sha256 /builder/
+COPY app.yml spin-cli.sh roer-${ROER_VERSION}.sha256 /builder/
 
 RUN set -ex \
     && curl -sSflL https://github.com/spinnaker/roer/releases/download/${ROER_VERSION}/roer-linux-amd64 \
               | tee /usr/local/bin/roer \
               | sha256sum -c /builder/roer-${ROER_VERSION}.sha256 \
-    && chmod +x /usr/local/bin/roer /builder/roer.sh \
+    && chmod +x /usr/local/bin/roer /builder/spin-cli.sh \
     && SPINNAKER_API=nothing roer --version
 
-ENTRYPOINT ["/builder/roer.sh"]
+ENTRYPOINT ["/builder/spin-cli.sh"]

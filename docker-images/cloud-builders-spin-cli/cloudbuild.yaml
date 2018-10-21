@@ -1,0 +1,25 @@
+substitutions:
+  _WORKING_DIR: .
+  _SPIN_CLI_VERSION: v0.0.1
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  dir: ${_WORKING_DIR}
+  args: [
+    'build',
+    '--build-arg',
+    'BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"`',
+    '--build-arg',
+    'COMMIT_SHA=$COMMIT_SHA',
+    '--build-arg',
+    'PROJECT_ID=${PROJECT_ID}',
+    '--tag=asia.gcr.io/$PROJECT_ID/cloud-builders-spin-cli:${_SPIN_CLI_VERSION}',
+    '--tag=asia.gcr.io/$PROJECT_ID/cloud-builders-spin-cli:latest',
+    '.'
+  ]
+
+images: ['asia.gcr.io/$PROJECT_ID/cloud-builders-spin-cli:${_SPIN_CLI_VERSION}',
+         'asia.gcr.io/$PROJECT_ID/cloud-builders-spin-cli:latest']
+tags:
+  - "roer"
+  - "helm"
+  - "tillerless"

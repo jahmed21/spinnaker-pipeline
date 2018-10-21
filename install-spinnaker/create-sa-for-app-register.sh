@@ -39,7 +39,7 @@ metadata:
 rules:
 - apiGroups: [""]
   resources: ["secrets"]
-  verbs: ["create", "update", "patch", "delete"]
+  verbs: ["get", "create", "update", "patch", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -107,6 +107,7 @@ function createKubeconfigForSA() {
 
 function publishKubeconfigFile() {
   local kubeconfig_file=$1
+  log "Storing kubeconfig at  gs://${CD_PROJECT_ID}-app-config/app-register.kubeconfig"
   gsutil cp $kubeconfig_file  gs://${CD_PROJECT_ID}-app-config/app-register.kubeconfig
 }
 

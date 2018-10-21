@@ -23,13 +23,13 @@ function echoAndExec() {
 function getDataFromSecret() {
   local secretName=$1
   local key=$(echo "$2" | sed 's/\./\\./g')
-  kubectl get secret $secretName -o=jsonpath="{.data.${key}}" | base64 --decode
+  kubectl -n default get secret $secretName -o=jsonpath="{.data.${key}}" | base64 --decode
 }
 
 function getLabelFromSecret() {
   local secretName=$1
   local key=$(echo "$2" | sed 's/\./\\./g')
-  kubectl get secret $secretName -o=jsonpath="{.metadata.labels.${key}}"
+  kubectl -n default get secret $secretName -o=jsonpath="{.metadata.labels.${key}}"
 }
 
 function getCommandForAccount() {

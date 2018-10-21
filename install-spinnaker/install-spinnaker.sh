@@ -103,10 +103,10 @@ function addDataToValues() {
   local dataValue="$4"
 
   if [[ -z "${dataValue}" ]]; then
-    log "Error. empty value for config '$key'-'$dataName'"
+    log "Error. empty value for config $key $dataName"
     exit 1
   fi
-  log "Configuring '$key'-'$dataName'"
+  log "Configuring $key $dataName"
   yq w -i $values_file "halyard.${key}.data.[${dataName}]"  "$dataValue"
 }
 

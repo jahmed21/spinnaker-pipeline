@@ -17,7 +17,7 @@ module "cd-gke" {
   cluster_service_account = "${format("%s-compute@developer.gserviceaccount.com", data.google_project.this_projecct.number)}"
   node_instance_type      = "n1-standard-2"
   max_node_count          = "2"
-  kubernetes_version      = "1.10.6-gke.2"
+  kubernetes_version      = "1.10.7-gke.6"
 }
 
 # Create GCS bucket to store spinnaker configuration

@@ -64,7 +64,7 @@ variable "node_disk_size_gb" {
 
 variable "kubernetes_version" {
   type    = "string"
-  default = "1.10.6-gke.2"
+  default = "1.10.7-gke.6"
 }
 
 variable "oauth_scopes" {

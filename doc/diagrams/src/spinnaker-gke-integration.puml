@@ -1,0 +1,58 @@
+@startuml
+autonumber 1 1 "<b>##)"
+skinparam BoxPadding 30
+skinparam ParticipantPadding 20
+
+title "Register GKE Cluster with EX Spinnaker"
+
+box "Application" #aqua
+    participant "Cloud Build" as app_cb
+end box
+
+box "Application" #aqua
+    participant "Application Cluster" as app_gke
+end box
+
+box "EX" #lightblue
+    participant "Cloud Storage\napp-config bucket" as ex_bucket
+    participant "Spinnaker\nCluster" as ex_gke
+end box
+
+[-> app_cb: Execute ex-spin-cli
+activate app_cb
+
+  app_cb -> app_gke: Create K8S\nSA & RBAC
+  activate app_gke
+
+    note right app_gke
+        SA used by
+        spinnaker to
+        deploy workloads
+        in app cluster
+    end note
+
+  app_cb <-- app_gke: Token
+  deactivate app_gke
+
+  app_cb -> app_cb: Prepare Application\nkubeconfig file
+
+  note left
+      kubeconfig:
+      user: app sa
+      role: cluster admin
+  end note
+
+  app_cb ->  ex_bucket: Get app-register.kubeconfig
+    note over ex_bucket
+        kubeconfig:
+        user: app-register.sa
+        role: secret writer
+    end note
+  app_cb <-- ex_bucket: kubeconfig file
+
+  app_cb ->  ex_gke: Store Application kubeconfig file as secret
+  app_cb <-- ex_gke: Done
+
+[<--app_cb: Done
+deactivate app_cb
+@enduml

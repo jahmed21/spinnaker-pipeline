@@ -1,0 +1,53 @@
+@startuml
+autonumber 1 1 "<b>##)"
+skinparam BoxPadding 30
+skinparam ParticipantPadding 20
+
+title k8s account config cronjob
+
+box "Spinnaker Cluster" #lightblue
+participant "k8s account\nconfig cronjob" as cronjob
+participant "secrets" as secrets
+participant "configmap\napp-kubeconfig-versions" as storage
+participant "halyard pod" as halyard
+end box
+
+
+[->cronjob: Time trigger
+
+  cronjob ->  secrets: Get secrets\ntype=kubeconfig
+    note over secrets
+      ex-spin-cli will create
+      secret with label
+      paas.ex.anz.com/type=kubeconfig
+    end note
+  cronjob <-- secrets: List of secrets
+
+  loop list of secrets
+
+    cronjob -> storage: Get previously deployed version
+    cronjob <-- storage: configured version (0 if not found)
+
+    cronjob ->  secrets: Get latest resource version
+    cronjob <-- secrets: resource version
+
+    cronjob -> cronjob: compare versions
+    activate cronjob
+    deactivate cronjob
+
+    alt resource version > configured version
+      cronjob -> halyard: Execute k8s-account-config.sh
+      activate halyard
+        note over halyard
+          execute hal
+          config commands
+        end note
+      cronjob <-- halyard: Done
+      deactivate halyard
+
+      cronjob ->  storage: Update deployed version\nto latest resource version
+      cronjob <-- storage: Done
+    end
+  end loop
+[<-- cronjob: Done
+@enduml

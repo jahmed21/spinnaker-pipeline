@@ -1,0 +1,134 @@
+@startuml
+autonumber 1 1 "<b>##)"
+skinparam BoxPadding 15
+skinparam ParticipantPadding 10
+
+title "Spinnaker Install"
+
+participant "Spinnaker\nNamespace" as spin_ns
+participant "halyard\nconfig" as halyard_config_bucket
+participant "app\nconfig" as app_config_bucket
+
+[-> cloud_build: Execute\ninstall-spinnaker.sh
+activate cloud_build
+
+    cloud_build ->  halyard_config_bucket: Get GCP Service Account
+    cloud_build <-- halyard_config_bucket: JSON Key
+
+    cloud_build -> cloud_build: Prepare values.yaml
+    note left
+        additionalConfigMaps
+        additionalSecrets 
+        additinoalScripts
+    end note
+
+    create participant "helm" as helm
+    cloud_build -> helm: spinnaker-chart
+
+        create participant "Halyard" as halyard_pod
+        helm -> halyard_pod: Deploy
+
+        create participant "helm spin\ninstall job" as install_job
+        helm -> install_job: Deploy
+
+            loop values.yaml
+            install_job -> halyard_pod: hal config\ncommands
+            end loop
+
+            loop feature flags
+            install_job -> halyard_pod: additional\nScripts
+            end loop
+
+            helm -> halyard_pod: install k8s-account-config.sh
+            note over halyard_pod
+                script used for 
+                application gke
+                integration 
+            end note
+
+            install_job -> halyard_pod: Deploy
+            activate halyard_pod
+
+                create participant "Spinnaker\nServices" as spin
+                halyard_pod -> spin: Deploy
+
+            install_job <-- halyard_pod: Done
+            deactivate halyard_pod
+
+        helm <-- install_job: Done
+
+    cloud_build <-- helm: Done
+
+
+[<--cloud_build: ok
+deactivate cloud_build
+
+[-> cloud_build: Execute\ncreate-sa-for-app-register.sh
+activate cloud_build
+
+    cloud_build ->  spin_ns: Create SA & RBAC for App Integration
+    note over spin_ns
+        Service Account with 
+        minimal permission
+        to get/create/update
+        secrets resource 
+    end note
+    cloud_build <-- spin_ns: Done
+
+    cloud_build -> cloud_build: Prepare kubeconfig file\nfor App Integration
+    activate cloud_build
+    deactivate cloud_build
+
+    cloud_build -> app_config_bucket: Store app-register.kubeconfig
+
+    cloud_build -> cloud_build: Prepare x509 cert and \nkey for App Integration
+    activate cloud_build
+    deactivate cloud_build
+    note left
+        x509 cert and key is used
+        by roer CLI to connect to
+        spinnaker gate service
+    end note
+
+    cloud_build -> app_config_bucket: Store X509 Cert and Key file
+
+[<--cloud_build: ok
+deactivate cloud_build
+
+[-> cloud_build: Install cronjob
+activate cloud_build
+
+    cloud_build ->  helm: helm-cronjob-chart
+
+    create participant "k8s account\nconfig cronjob" as cronjob
+    helm -> cronjob: Create
+    note over cronjob
+        Cronjob scan for 
+        new/updated secrets
+        to be configured in
+        spinnaker 
+    end note
+    cloud_build <-- helm: Done
+
+[<--cloud_build: ok
+deactivate cloud_build
+
+box "CI Project"
+    participant "Cloud Build" as cloud_build
+    participant helm
+end box
+
+box "Services Project\nSpinnaker Cluster" #lightblue
+    participant "Spinnaker\nNamespace" as spin_ns
+    participant install_job
+    participant halyard_pod
+    participant spin
+    participant cronjob
+end box
+
+box "Services Project\nCloud Storage"
+    participant "halyard-config" as halyard_config_bucket
+    participant "app-config" as app_config_bucket
+end box
+
+@enduml

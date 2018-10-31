@@ -1,5 +1,5 @@
 locals {
-  project_id             = "ex-services-pp-18655"
+  project_id             = "services-21468"
   spinnaker_gcs_sa_name  = "spinnaker-gcs-sa"
   spinnaker_gcs_key_name = "spinnaker-gcs-access-key.json"
   region                 = "asia-southeast1"

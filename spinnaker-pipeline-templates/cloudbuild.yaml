@@ -1,11 +1,11 @@
 substitutions:
   _WORKING_DIR: .
   _EX_SPIN_CLI_VERSION: v0.0.1
-  _CD_PROJECT_ID: ex-services-pp-18655
-  _CLOUDSDK_CONTAINER_CLUSTER: ex-services-pp-18655-gke
+  _CD_PROJECT_ID: services-21468
+  _CLOUDSDK_CONTAINER_CLUSTER: services-21468-gke
   _CLOUDSDK_COMPUTE_REGION: asia-southeast1
-  _X509_CERT: gs://ex-services-pp-18655-app-config/roer.crt
-  _X509_KEY: gs://ex-services-pp-18655-app-config/roer.key
+  _X509_CERT: gs://services-21468-app-config/roer.crt
+  _X509_KEY: gs://services-21468-app-config/roer.key
 steps:
 - name: asia.gcr.io/$PROJECT_ID/cloud-builders-ex-spin-cli:${_EX_SPIN_CLI_VERSION}
   dir: ${_WORKING_DIR}

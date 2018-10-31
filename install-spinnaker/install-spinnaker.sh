@@ -169,6 +169,7 @@ function invokeHelm() {
   log "Helming now"
   set -x
   helm upgrade ${_HELM_RELEASE_NAME} stable/spinnaker \
+    --force \
     --install \
     --debug \
     --timeout 900 \

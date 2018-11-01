@@ -1,5 +1,6 @@
 logging:
   level:
+    com.netflix.spinnaker.gate: DEBUG
     com.netflix.spinnaker.gate.security: DEBUG
     com.netflix.spinnaker.gate.controllers: DEBUG
     com.netflix.spinnaker.clouddriver.docker: DEBUG

@@ -1,0 +1,54 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: spin-gateway
+spec:
+  selector:
+    app: custom-gateway
+  servers:
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      serverCertificate: /etc/istio/customgateway-certs/tls.crt
+      privateKey: /etc/istio/customgateway-certs/tls.key
+    hosts:
+    - "spinnaker.nataram4.com"
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: spin-routes
+spec:
+  hosts:
+  - "spinnaker.nataram4.com"
+  gateways:
+  - spin-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /gate
+    rewrite:
+      uri: /
+    route:
+    - destination:
+        port:
+          number: 8084
+        host: spin-gate.spinnaker.svc.cluster.local
+  - match:
+    - uri:
+        prefix: /login
+    - uri:
+        prefix: /auth
+    route:
+    - destination:
+        port:
+          number: 8084
+        host: spin-gate.spinnaker.svc.cluster.local
+  - route:
+    - destination:
+        port:
+          number: 9000
+        host: spin-deck.spinnaker.svc.cluster.local

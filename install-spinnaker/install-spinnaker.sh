@@ -7,6 +7,7 @@ declare -A OPTS=(
              ["helm-release-name:"]="Helm release name"
                  ["chart-version:"]="Spinnaker chart version (default to 1.1.4)"
               ["oauth2-json-name:"]="Google OAUTH2 client secret json file"
+           ["oauth2-redirect-url:"]="OAUTH2 Redirect URL"
                  ["gate-base-url:"]="Gate override base url"
                    ["ui-base-url:"]="UI override base url"
            ["pubsub-subscription:"]="Name of the pubsub subscription to be used by spinnaker"
@@ -42,8 +43,9 @@ _OAUTH2_JSON_NAME=""
 _PUBSUB_SUBSCRIPTION_NAME=""
 _CHART_VERSION="1.1.4"
 _SPINNAKER_GCP_SA_KEY_JSON_NAME=""
-_GATE_BASE_URL=""
+_GATE_BASE_URL="/gate"
 _UI_BASE_URL=""
+_OAUTH2_REDIRECT_URL="/login"
 _GATE_X509_ENABLED=false
 
 VALUES_FILE=values-updated.yaml
@@ -56,6 +58,7 @@ while true ; do
     --oauth2-json-name) _OAUTH2_JSON_NAME=$2; shift 2;;
     --gate-base-url) _GATE_BASE_URL=$2; shift 2;;
     --ui-base-url) _UI_BASE_URL=$2; shift 2;;
+    --oauth2-redirect-url) _OAUTH2_REDIRECT_URL=$2; shift 2;;
     --pubsub-subscription) _PUBSUB_SUBSCRIPTION_NAME=$2; shift 2;;
     --chart-version) _CHART_VERSION=$2; shift 2;;
     --spinnaker-gcp-sa-key-json-name) _SPINNAKER_GCP_SA_KEY_JSON_NAME=$2; shift 2;;
@@ -441,6 +444,9 @@ configureAdditionalConfigValue  $VALUES_FILE  "project-id"  "${_CD_PROJECT_ID}"
 
 # Create OAuth Client Id & Secret as additionalSecrets
 if [[ ! -z "${_OAUTH2_JSON_NAME}" ]]; then
+  if [[ ! -z "${_OAUTH2_REDIRECT_URL}" ]]; then
+    configureAdditionalConfigValue  $VALUES_FILE  "oauth-redirect-url"  "${_OAUTH2_REDIRECT_URL}"
+  fi
   configureAdditionalScripts  $VALUES_FILE  oauth-config.sh
   configureValueAsSecret $VALUES_FILE  "oauth-client-id"  \
             "$(gsutil cat gs://${_CD_PROJECT_ID}-halyard-config/${_OAUTH2_JSON_NAME} | jq -Mr .web.client_id)"

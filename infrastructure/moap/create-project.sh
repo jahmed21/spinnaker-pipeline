@@ -4,7 +4,7 @@ set -xeuo pipefail
 
 RANDOM=$(hexdump -n 3 -e '"%06X" 1 "\n"' /dev/random | tr '[:upper:]' '[:lower:]')
 PROJECT_ID=${1}-${RANDOM}
-gcloud projects create ${PROJECT_ID}
+gcloud projects create ${PROJECT_ID} --name $1
 
 gcloud beta billing projects link $PROJECT_ID \
   --billing-account=$(gcloud beta billing  accounts list   --format="value(name)" --filter open=true)

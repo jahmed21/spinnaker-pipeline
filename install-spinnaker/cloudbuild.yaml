@@ -4,6 +4,8 @@ substitutions:
   _JOB_IMAGE_VERSION: v0.0.2
   _GATE_BASE_URL: ''
   _UI_BASE_URL: ''
+  _INGRESS_BASE_URL: ''
+  _OAUTH2_REDIRECT_URL: ''
   _OAUTH2_ENABLED: 'false'
   _PUBSUB_ENABLED: 'false'
   _GATE_X509_ENABLED: 'false'
@@ -22,9 +24,19 @@ steps:
     set -eo pipefail
 
     OPTIONAL_PARAMS=""
+    UI_BASE_URL="${_UI_BASE_URL}"
+    GATE_BASE_URL="${_GATE_BASE_URL}"
+    OAUTH2_REDIRECT_URL="${_OAUTH2_REDIRECT_URL}"
+
+    if [[ ! -z "${_INGRESS_BASE_URL}" ]]; then
+      UI_BASE_URL="${_INGRESS_BASE_URL}"
+      GATE_BASE_URL="${_INGRESS_BASE_URL}/gate"
+      OAUTH2_REDIRECT_URL="${_INGRESS_BASE_URL}/login"
+    fi
+
 
     [[ "${_OAUTH2_ENABLED}" == "true" ]] && \
-      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --oauth2-json-name ${_OAUTH2_JSON_NAME} --gate-base-url ${_GATE_BASE_URL}"
+      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --oauth2-json-name ${_OAUTH2_JSON_NAME}"
 
     [[ "${_PUBSUB_ENABLED}" == "true" ]] && \
       OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --pubsub-subscription ${_PUBSUB_SUBSCRIPTION_NAME}"
@@ -32,11 +44,16 @@ steps:
     [[ "${_GATE_X509_ENABLED}" == "true" ]] && \
       OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --enable-gate-x509"
 
-    [[ ! -z "${_GATE_BASE_URL}" ]] && \
-      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --gate-base-url ${_GATE_BASE_URL}"
+    [[ ! -z "$$GATE_BASE_URL" ]] && \
+      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --gate-base-url $$GATE_BASE_URL"
 
-    [[ ! -z "${_UI_BASE_URL}" ]] && \
-      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --ui-base-url ${_UI_BASE_URL}"
+    [[ ! -z "$$UI_BASE_URL" ]] && \
+      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --ui-base-url $$UI_BASE_URL"
+
+    [[ ! -z "$$OAUTH2_REDIRECT_URL" ]] && \
+      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --oauth2-redirect-url $$OAUTH2_REDIRECT_URL"
+
+    echo "Params [$$OPTIONAL_PARAMS]"
 
     ./install-spinnaker.sh \
         --project ${_CD_PROJECT_ID} \
@@ -55,7 +72,9 @@ steps:
   - 'bash'
   - '-c'
   - |
-    ./create-sa-for-app-register.sh ${_CD_PROJECT_ID} ${_CI_PROJECT_NUMBER}@cloudbuild.gserviceaccount.com
+    if [[ "${_GATE_X509_ENABLED}" == "true" ]]; then
+      ./create-sa-for-app-register.sh ${_CD_PROJECT_ID} ${_CI_PROJECT_NUMBER}@cloudbuild.gserviceaccount.com
+    fi
   env:
   - 'GCLOUD_PROJECT=${_CD_PROJECT_ID}'
   - 'CLOUDSDK_COMPUTE_REGION=${_CLOUDSDK_COMPUTE_REGION}'
@@ -68,19 +87,21 @@ steps:
   - 'bash'
   - '-c'
   - |
-    gsutil cp gs://${_CD_PROJECT_ID}-halyard-config/${_SPINNAKER_GCP_SA_KEY_JSON_NAME} .
+    if [[ "${_GATE_X509_ENABLED}" == "true" ]]; then
+      gsutil cp gs://${_CD_PROJECT_ID}-halyard-config/${_SPINNAKER_GCP_SA_KEY_JSON_NAME} .
 
-    helm upgrade ${_HELM_RELEASE_NAME}-cronjob . \
-      --install \
-      --debug \
-      --namespace spinnaker \
-      --values values.yaml \
-      --set 'jobs[0].name'=configure-k8s-account \
-      --set 'jobs[0].image.repository'=asia.gcr.io/${PROJECT_ID}/configure-spin-k8s-account \
-      --set 'jobs[0].image.tag'=${_JOB_IMAGE_VERSION}  \
-      --set 'jobs[0].schedule'='*/10 * * * *' \
-      --set imageCredentials.registry=https://asia.gcr.io \
-      --set imageCredentials.jsonKeyFile=spinnaker-gcs-access-key.json
+      helm upgrade ${_HELM_RELEASE_NAME}-cronjob . \
+        --install \
+        --debug \
+        --namespace spinnaker \
+        --values values.yaml \
+        --set 'jobs[0].name'=configure-k8s-account \
+        --set 'jobs[0].image.repository'=asia.gcr.io/${PROJECT_ID}/configure-spin-k8s-account \
+        --set 'jobs[0].image.tag'=${_JOB_IMAGE_VERSION}  \
+        --set 'jobs[0].schedule'='*/10 * * * *' \
+        --set imageCredentials.registry=https://asia.gcr.io \
+        --set imageCredentials.jsonKeyFile=spinnaker-gcs-access-key.json
+    fi
   env:
   - 'GCLOUD_PROJECT=${_CD_PROJECT_ID}'
   - 'CLOUDSDK_COMPUTE_REGION=${_CLOUDSDK_COMPUTE_REGION}'

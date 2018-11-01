@@ -4,6 +4,11 @@ server:
   ssl:
     keyStorePassword: ''
     trustStorePassword: ''
+  tomcat:
+    protocolHeader: X-Forwarded-Proto
+    remoteIpHeader: X-Forwarded-For
+    internalProxies: .*
+    httpsServerPort: X-Forwarded-Port
 default:
   apiPort: 8085
   # Need to enable legacy port due to https://github.com/spinnaker/spinnaker/issues/2533

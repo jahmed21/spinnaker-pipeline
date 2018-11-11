@@ -1,3 +1,4 @@
+---
 apiVersion: networking.istio.io/v1alpha3
 kind: Gateway
 metadata:
@@ -8,14 +9,22 @@ spec:
   servers:
   - port:
       number: 443
-      name: https
+      name: spin-https
       protocol: HTTPS
     tls:
       mode: SIMPLE
       serverCertificate: /etc/istio/customgateway-certs/tls.crt
       privateKey: /etc/istio/customgateway-certs/tls.key
     hosts:
-    - "spinnaker.nataram4.com"
+    - spinnaker.nataram4.com
+  - port:
+      number: 444
+      name: roer-x509
+      protocol: HTTPS
+    tls:
+      mode: PASSTHROUGH
+    hosts:
+    - spinnaker-roer.nataram4.com
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
@@ -23,7 +32,7 @@ metadata:
   name: spin-routes
 spec:
   hosts:
-  - "spinnaker.nataram4.com"
+  - spinnaker.nataram4.com
   gateways:
   - spin-gateway
   http:
@@ -42,6 +51,8 @@ spec:
         prefix: /login
     - uri:
         prefix: /auth
+    - uri:
+        prefix: //auth
     route:
     - destination:
         port:
@@ -52,3 +63,24 @@ spec:
         port:
           number: 9000
         host: spin-deck.spinnaker.svc.cluster.local
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: roer-routes
+spec:
+  hosts:
+  - spinnaker-roer.nataram4.com
+  gateways:
+  - spin-gateway
+  tls:
+  - match:
+    - port: 444
+      sniHosts:
+      - spinnaker-roer.nataram4.com
+    route:
+    - destination:
+        host: spin-gate.spinnaker.svc.cluster.local
+        port:
+          number: 8085
+---

@@ -1,5 +1,5 @@
 locals {
-  cd_project_id = "istio-spin-21468"
+  cd_project_id = "diwali-16838"
 }
 
 # Give permission to spinnaker service account created in services to check images from launchpad docker registries

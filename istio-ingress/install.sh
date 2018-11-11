@@ -2,10 +2,10 @@
 
 set -xeuo pipefail
 
-#helm tiller run helm delete istio-ingress --purge || true
-#kubectl delete --ignore-not-found=true -f ./istio-1.0.3/install/kubernetes/helm/istio/templates/crds.yaml
-#kubectl delete --ignore-not-found=true namespace istio-system 
-#watch kubectl get namespace
+helm tiller run helm delete istio-ingress --purge || true
+kubectl delete --ignore-not-found=true -f ./istio/templates/crds.yaml
+kubectl delete --ignore-not-found=true namespace istio-system 
+watch kubectl get namespace
 
 kubectl create clusterrolebinding cluster-admin-binding \
   --clusterrole=cluster-admin \

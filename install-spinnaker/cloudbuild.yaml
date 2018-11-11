@@ -6,9 +6,10 @@ substitutions:
   _UI_BASE_URL: ''
   _INGRESS_BASE_URL: ''
   _OAUTH2_REDIRECT_URL: ''
-  _OAUTH2_ENABLED: 'false'
-  _PUBSUB_ENABLED: 'false'
-  _GATE_X509_ENABLED: 'false'
+  _GATE_X509_CA_CRT: ''
+  _GATE_X509_SERVER_CRT: ''
+  _GATE_X509_SERVER_KEY: ''
+  _GATE_X509_SERVER_KEY_PASS: ''
   _PUBSUB_SUBSCRIPTION_NAME: 'spin-pipeline-trigger'
   _SPINNAKER_GCP_SA_KEY_JSON_NAME: 'spinnaker-gcs-access-key.json'
   _OAUTH2_JSON_NAME: 'spinnaker-oauth-client.json'
@@ -20,8 +21,7 @@ steps:
   - 'bash'
   - '-c'
   - |
-    set +x
-    set -eo pipefail
+    set -xeo pipefail
 
     OPTIONAL_PARAMS=""
     UI_BASE_URL="${_UI_BASE_URL}"
@@ -35,17 +35,11 @@ steps:
     fi
 
 
-    [[ "${_OAUTH2_ENABLED}" == "true" ]] && \
+    [[ ! -z "${_OAUTH2_JSON_NAME}" ]] && \
       OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --oauth2-json-name ${_OAUTH2_JSON_NAME}"
 
-    [[ "${_PUBSUB_ENABLED}" == "true" ]] && \
+    [[ ! -z "${_PUBSUB_SUBSCRIPTION_NAME}" ]] && \
       OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --pubsub-subscription ${_PUBSUB_SUBSCRIPTION_NAME}"
-
-    [[ "${_GATE_X509_ENABLED}" == "true" ]] && \
-      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --enable-gate-x509"
-
-    [[ ! -z "$$GATE_BASE_URL" ]] && \
-      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --gate-base-url $$GATE_BASE_URL"
 
     [[ ! -z "$$UI_BASE_URL" ]] && \
       OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --ui-base-url $$UI_BASE_URL"
@@ -53,7 +47,22 @@ steps:
     [[ ! -z "$$OAUTH2_REDIRECT_URL" ]] && \
       OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --oauth2-redirect-url $$OAUTH2_REDIRECT_URL"
 
-    echo "Params [$$OPTIONAL_PARAMS]"
+    [[ ! -z "$$GATE_BASE_URL" ]] && \
+      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --gate-base-url $$GATE_BASE_URL"
+
+    [[ ! -z "${_GATE_X509_CA_CRT}" ]] && \
+      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --gate-x509-ca-crt ${_GATE_X509_CA_CRT}"
+
+    [[ ! -z "${_GATE_X509_SERVER_CRT}" ]] && \
+      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --gate-x509-server-crt ${_GATE_X509_SERVER_CRT}"
+
+    [[ ! -z "${_GATE_X509_SERVER_KEY}" ]] && \
+      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --gate-x509-server-key ${_GATE_X509_SERVER_KEY}"
+
+    [[ ! -z "${_GATE_X509_SERVER_KEY_PASS}" ]] && \
+      OPTIONAL_PARAMS="$$OPTIONAL_PARAMS --gate-x509-server-key-pass ${_GATE_X509_SERVER_KEY_PASS}"
+
+    echo "Optional Params: $$OPTIONAL_PARAMS"
 
     ./install-spinnaker.sh \
         --project ${_CD_PROJECT_ID} \
@@ -72,7 +81,7 @@ steps:
   - 'bash'
   - '-c'
   - |
-    if [[ "${_GATE_X509_ENABLED}" == "true" ]]; then
+    if [[ "false" == "true" ]]; then
       ./create-sa-for-app-register.sh ${_CD_PROJECT_ID} ${_CI_PROJECT_NUMBER}@cloudbuild.gserviceaccount.com
     fi
   env:
@@ -87,7 +96,7 @@ steps:
   - 'bash'
   - '-c'
   - |
-    if [[ "${_GATE_X509_ENABLED}" == "true" ]]; then
+    if [[ "false" == "true" ]]; then
       gsutil cp gs://${_CD_PROJECT_ID}-halyard-config/${_SPINNAKER_GCP_SA_KEY_JSON_NAME} .
 
       helm upgrade ${_HELM_RELEASE_NAME}-cronjob . \

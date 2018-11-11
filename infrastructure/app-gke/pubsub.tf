@@ -1,7 +1,7 @@
 locals {
   bucket_name        = "${local.project_id}-spinnaker-artifacts"
   ci_project_number  = "924344399848"
-  spinnaker_sa_email = "spinnaker-gcs-sa@istio-spin-21468.iam.gserviceaccount.com"
+  spinnaker_sa_email = "spinnaker-gcs-sa@diwali-16838.iam.gserviceaccount.com"
 }
 
 # Allow EX Cloud Build service account to create workload and CRB in the app cluster

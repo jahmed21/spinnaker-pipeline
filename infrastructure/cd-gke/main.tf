@@ -1,5 +1,5 @@
 locals {
-  project_id             = "istio-spin-21468"
+  project_id             = "diwali-16838"
   spinnaker_gcs_sa_name  = "spinnaker-gcs-sa"
   spinnaker_gcs_key_name = "spinnaker-gcs-access-key.json"
   region                 = "asia-southeast1"

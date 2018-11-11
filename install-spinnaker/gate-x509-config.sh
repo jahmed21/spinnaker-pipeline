@@ -6,9 +6,6 @@ source /opt/halyard/additionalConfigMaps/common-functions.sh
 
 _KEYSTORE_PATH=$(getSecretFilePath gate-x509.jks)
 
-bash /opt/halyard/additionalScripts/gate-url-config.sh
-bash /opt/halyard/additionalScripts/ui-url-config.sh
-
 $HAL_COMMAND config security api ssl edit \
     --key-alias spinnaker \
     --keystore $_KEYSTORE_PATH \

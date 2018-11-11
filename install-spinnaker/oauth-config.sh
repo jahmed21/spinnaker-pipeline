@@ -9,8 +9,6 @@ _OAUTH2_CLIENT_SECRET=$(getSecretValue oauth-client-secret)
 _GATE_BASE_URL=$(getConfigValue gate-base-url)
 _OAUTH2_REDIRECT_URL=$(getConfigValue oauth-redirect-url)
 
-bash /opt/halyard/additionalScripts/ui-url-config.sh
-bash /opt/halyard/additionalScripts/gate-url-config.sh
 
 $HAL_COMMAND config security authn oauth2 edit \
                 --client-id ${_OAUTH2_CLIENT_ID} \

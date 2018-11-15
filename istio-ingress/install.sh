@@ -2,7 +2,7 @@
 
 set -xeuo pipefail
 
-helm tiller run helm delete istio-ingress --purge || true
+helm tiller run helm delete istio-ingress --purge --no-hooks || true
 kubectl delete --ignore-not-found=true -f ./istio/templates/crds.yaml
 kubectl delete --ignore-not-found=true namespace istio-system 
 watch kubectl get namespace
@@ -14,17 +14,15 @@ kubectl create clusterrolebinding cluster-admin-binding \
 
 helm tiller run helm upgrade istio-ingress  \
               istio \
-              --values istio/values-istio-gateways.yaml \
-              --set global.crds=true \
-              --set security.enabled=true \
-              --set pilot.enabled=true \
-              --set gateways.custom-gateway.cpu.targetAverageUtilization=80 \
-              --set gateways.custom-gateway.externalTrafficPolicy=Local \
+              --values values-istio-gateways.yaml \
               --set gateways.istio-ingressgateway.enabled=false \
               --set gateways.istio-egressgateway.enabled=false \
               --namespace istio-system \
               --install \
+              --timeout 120 \
               --force
+
+exit 0
 
 DNS=spinnaker.nataram4.com
 SECRET=istio-customgateway-certs

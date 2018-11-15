@@ -1,0 +1,10 @@
+substitutions:
+  _VERSION: v0.0.3
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: [
+    'build',
+    '--tag=asia.gcr.io/$PROJECT_ID/k8s-api-proxy:${_VERSION}',
+    '.'
+  ]
+images: ['asia.gcr.io/$PROJECT_ID/k8s-api-proxy:${_VERSION}']

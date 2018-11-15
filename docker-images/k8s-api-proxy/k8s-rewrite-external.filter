@@ -1,0 +1,5 @@
+CLIENT-HEADER-FILTER: k8s-rewrite-external Rewrite https://CLUSTER_IP/
+s@(CONNECT) CLUSTER_IP:443 (HTTP/.*)@$1 kubernetes.default.svc.cluster.local:443 $2@ig
+
+CLIENT-HEADER-FILTER: k8s-rewrite-external Rewrite https://KUBERNETES_SERVICE_HOST/
+s@(CONNECT) KUBERNETES_SERVICE_HOST:443 (HTTP/.*)@$1 kubernetes.default.svc.cluster.local:443 $2@ig

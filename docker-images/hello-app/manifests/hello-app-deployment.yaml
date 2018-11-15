@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-app
+  labels:
+    app: hello-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hello-app
+  template:
+    metadata:
+      labels:
+        app: hello-app
+    spec:
+      serviceAccountName: spin-sa
+      containers:
+      - name: hello-app
+        image: asia.gcr.io/bmt-2201-53cd0c/hello-app:v0.0.2
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080

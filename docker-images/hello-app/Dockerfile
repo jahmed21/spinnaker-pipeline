@@ -6,7 +6,7 @@ FROM gcr.io/cloud-builders/kubectl
 COPY --from=0 /go/bin/hello-app /tmp/
 RUN chmod +x /tmp/hello-app \
     && apt-get update \
-    && apt-get install -y iproute2 dnsutils \
+    && apt-get install -y iproute2 dnsutils iputils-tracepath iputils-ping netcat nmap \
     && apt-get -y autoremove \
     && apt-get clean
 ENV PORT 8080

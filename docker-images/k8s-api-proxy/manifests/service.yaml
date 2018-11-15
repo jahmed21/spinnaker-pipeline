@@ -8,6 +8,8 @@ metadata:
     app: k8s-api-proxy
 spec:
   type: LoadBalancer
+  loadBalancerSourceRanges:
+    - 192.0.2.0/24  # Special ip range, not in use. Used here to disable the coarse grained firewall automatically created. Refer https://tools.ietf.org/html/rfc3330
   selector:
     app: k8s-api-proxy
   ports:

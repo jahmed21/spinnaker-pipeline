@@ -1,10 +1,8 @@
 FROM golang:1.8
-RUN cat /etc/os-release
 ADD . /go/src/hello-app
 RUN go install hello-app
 
 FROM gcr.io/cloud-builders/kubectl
-RUN cat /etc/os-release
 COPY --from=0 /go/bin/hello-app /tmp/
 RUN chmod +x /tmp/hello-app \
     && apt-get update \

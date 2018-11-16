@@ -1,6 +1,6 @@
 locals {
   zone                        = "asia-east1-b"
-  project_id                  = "bmt-2201-53cd0c"
+  project_id                  = "pips-233-a10486"
   spin_subnet_range           = "10.10.1.0/27"
   spin_master_ipv4_cidr_block = "10.10.17.0/28"
   spin_k8s_services_cidr      = "10.10.18.0/24"

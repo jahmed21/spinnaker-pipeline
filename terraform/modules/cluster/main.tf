@@ -31,9 +31,9 @@ resource "google_compute_subnetwork" "subnet" {
 
 resource "google_container_cluster" "cluster" {
   provider = "google-beta"
-  name    = "${var.cluster_name}"
-  zone    = "${var.zone}"
-  project = "${var.project_id}"
+  name     = "${var.cluster_name}"
+  zone     = "${var.zone}"
+  project  = "${var.project_id}"
 
   # Deploy into VPC
   network    = "${google_compute_network.vpc.self_link}"
@@ -41,9 +41,9 @@ resource "google_container_cluster" "cluster" {
 
   # Private GKE
   private_cluster_config {
-    enable_private_nodes = true
+    enable_private_nodes    = true
     enable_private_endpoint = false
-    master_ipv4_cidr_block = "${var.master_ipv4_cidr_block}"
+    master_ipv4_cidr_block  = "${var.master_ipv4_cidr_block}"
   }
 
   min_master_version = "${var.kubernetes_version}"
@@ -132,6 +132,13 @@ module "node_pool" {
   tags               = "${var.default_node_pool_tags}"
 }
 
+module "nat_gw" {
+  source           = "../nat-gw"
+  nat_gw_name      = "${var.nat_gw_name}"
+  region           = "${var.region}"
+  vpc_network_name = "${google_compute_network.vpc.id}"
+}
+
 output "vpc_self_link" {
   value = "${google_compute_network.vpc.self_link}"
 }
@@ -139,4 +146,3 @@ output "vpc_self_link" {
 output "cluster_master_private_endpoint" {
   value = "${google_container_cluster.cluster.private_cluster_config.0.private_endpoint}}"
 }
-

@@ -10,11 +10,19 @@ variable "subnet_range" {
 variable "k8s_pod_cidr" {
 }
 
+variable "nat_gw_name" {
+  default = ""
+}
+
 variable "k8s_services_cidr" {
 }
 
 variable "zone" {
   default = "asia-east1-b"
+}
+
+variable "region" {
+  default = "asia-east1"
 }
 
 variable "master_authorized_cidr_blocks" {
@@ -43,7 +51,7 @@ variable "node_disk_size_gb" {
 }
 
 variable "kubernetes_version" {
-  default = "1.10.9-gke.3"
+  default = "1.11.2-gke.18"
 }
 
 variable "oauth_scopes" {
@@ -60,3 +68,4 @@ variable "default_node_pool_tags" {
   type    = "list"
   default = []
 }
+

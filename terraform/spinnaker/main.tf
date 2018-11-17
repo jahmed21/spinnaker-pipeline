@@ -42,6 +42,7 @@ module "app-cluster" {
   k8s_services_cidr      = "${local.app_k8s_services_cidr}"
   k8s_pod_cidr           = "${local.app_k8s_pod_cidr}"
   node_instance_type     = "n1-standard-2"
+  nat_gw_name            = "app-nat-gw"
   default_node_pool_tags = ["app-cluster-np"]
 }
 
@@ -60,6 +61,7 @@ resource "google_compute_network_peering" "app-spin-peering" {
 }
 
 resource "google_compute_firewall" "allow-k8s-api-proxy" {
+  provider       = "google-beta"
   name           = "allow-k8s-api-proxy"
   description    = "To allow access to k8s-api-proxy from spin-cluster"
   project        = "${local.project_id}"

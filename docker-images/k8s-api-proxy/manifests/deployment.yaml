@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: k8s-api-proxy
-        image: asia.gcr.io/bmt-2201-53cd0c/k8s-api-proxy:v0.0.3
+        image: asia.gcr.io/calcine-134532/k8s-api-proxy:v0.0.3
         imagePullPolicy: Always
         ports:
         - containerPort: 8118

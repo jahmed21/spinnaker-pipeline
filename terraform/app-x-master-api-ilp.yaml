@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: kubernetes-ilb
+  labels:
+    component: apiserver
+    provider: kubernetes
+subsets:
+- addresses:
+  - ip: 10.20.17.2
+  ports:
+  - name: https
+    port: 443
+    protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubernetes-ilb
+  labels:
+    component: apiserver
+    provider: kubernetes
+  annotations:
+    cloud.google.com/load-balancer-type: "Internal"
+spec:
+  type: LoadBalancer
+  loadBalancerSourceRanges:
+  - 10.10.160.0/19
+  ports:
+  - name: https
+    port: 8118
+    protocol: TCP
+    targetPort: 443

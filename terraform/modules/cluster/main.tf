@@ -3,18 +3,11 @@ data "google_project" "project" {
   project_id = "${var.project_id}"
 }
 
-resource "google_compute_network" "vpc" {
-  name                    = "${var.cluster_name}-vpc"
-  auto_create_subnetworks = "false"
-  routing_mode            = "REGIONAL"
-  project                 = "${var.project_id}"
-}
-
 resource "google_compute_subnetwork" "subnet" {
-  name                     = "${google_compute_network.vpc.name}-subnet"
+  name                     = "${var.cluster_name}-subnet"
   project                  = "${var.project_id}"
   ip_cidr_range            = "${var.subnet_range}"
-  network                  = "${google_compute_network.vpc.self_link}"
+  network                  = "${var.vpc_self_link}"
   private_ip_google_access = true
   enable_flow_logs         = true
 
@@ -36,8 +29,10 @@ resource "google_container_cluster" "cluster" {
   project  = "${var.project_id}"
 
   # Deploy into VPC
-  network    = "${google_compute_network.vpc.self_link}"
-  subnetwork = "${google_compute_subnetwork.subnet.self_link}"
+  #network    = "${var.vpc_self_link}"
+  #subnetwork = "${google_compute_subnetwork.subnet.self_link}"
+  network    = "projects/${var.project_id}/global/networks/${var.vpc_name}"
+  subnetwork = "projects/${var.project_id}/regions/${var.region}/subnetworks/${google_compute_subnetwork.subnet.name}"
 
   # Private GKE
   private_cluster_config {
@@ -136,13 +131,9 @@ module "nat_gw" {
   source           = "../nat-gw"
   nat_gw_name      = "${var.nat_gw_name}"
   region           = "${var.region}"
-  vpc_network_name = "${google_compute_network.vpc.id}"
+  vpc_network_name = "${var.vpc_name}"
 }
 
-output "vpc_self_link" {
-  value = "${google_compute_network.vpc.self_link}"
-}
-
-output "cluster_master_private_endpoint" {
-  value = "${google_container_cluster.cluster.private_cluster_config.0.private_endpoint}}"
+output "service_account_email" {
+  value = "${google_service_account.node-service-account.email}"
 }

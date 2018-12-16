@@ -17,7 +17,7 @@ spec:
       serviceAccountName: spin-sa
       containers:
       - name: hello-app
-        image: asia.gcr.io/vasculum-b330d4/hello-app:v0.0.2
+        image: asia.gcr.io/zoomania-18a88/hello-app:v0.0.2
         imagePullPolicy: Always
         ports:
         - containerPort: 8080

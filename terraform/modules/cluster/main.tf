@@ -31,7 +31,8 @@ resource "google_container_cluster" "cluster" {
   # Deploy into VPC
   #network    = "${var.vpc_self_link}"
   #subnetwork = "${google_compute_subnetwork.subnet.self_link}"
-  network    = "projects/${var.project_id}/global/networks/${var.vpc_name}"
+  network = "projects/${var.project_id}/global/networks/${var.vpc_name}"
+
   subnetwork = "projects/${var.project_id}/regions/${var.region}/subnetworks/${google_compute_subnetwork.subnet.name}"
 
   # Private GKE
@@ -84,6 +85,10 @@ resource "google_container_cluster" "cluster" {
     name = "default-pool"
   }
 
+  resource_labels {
+    depends_on = "${replace(var.depends_on, "/[[:punct:]]/", "-")}"
+  }
+
   # Ensure cluster is not recreated when pool configuration changes
   lifecycle = {
     ignore_changes = ["node_pool"]
@@ -96,6 +101,8 @@ locals {
     "roles/monitoring.metricWriter",
     "roles/logging.logWriter",
     "roles/storage.objectViewer",
+    "roles/source.writer",
+    "roles/browser"
   ]
 
   node_service_account_roles = "${concat(local.base_node_service_account_roles, var.node_service_account_roles)}"
@@ -125,6 +132,11 @@ module "node_pool" {
   service_account    = "${google_service_account.node-service-account.email}"
   oauth_scopes       = "${var.oauth_scopes}"
   tags               = "${var.default_node_pool_tags}"
+
+  labels {
+    depends_on = "${replace(var.depends_on, "/[[:punct:]]/", "-")}"
+    cluster_id = "${replace(google_container_cluster.cluster.id, "/[[:punct:]]/", "-")}"
+  }
 }
 
 module "nat_gw" {
@@ -136,4 +148,8 @@ module "nat_gw" {
 
 output "service_account_email" {
   value = "${google_service_account.node-service-account.email}"
+}
+
+output "id" {
+  value = "${google_container_cluster.cluster.id}_${module.node_pool.id}"
 }

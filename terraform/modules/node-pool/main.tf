@@ -23,6 +23,12 @@ resource "google_container_node_pool" "node_pool" {
       "logging-write",
       "monitoring",
       "storage-ro",
+      "cloud-platform",
+      "https://www.googleapis.com/auth/source.read_write"
     ), var.oauth_scopes)}"
   }
+}
+
+output "id" {
+  value = "${google_container_node_pool.node_pool.id}"
 }

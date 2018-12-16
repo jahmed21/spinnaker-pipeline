@@ -2,8 +2,8 @@ FROM gcr.io/cloud-builders/gcloud
 
 ARG BUILD_DATE
 ARG COMMIT_SHA
-ARG HELM_VERSION=v2.11.0
-ARG YQ_VERSION=2.1.1
+ARG HELM_VERSION=v2.12.0
+ARG YQ_VERSION=2.2.0
 ARG KUBEVAL_VERSION=0.7.3
 
 LABEL maintainer="manikandan.natarajan@anz.com" \

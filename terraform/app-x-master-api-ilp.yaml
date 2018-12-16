@@ -24,8 +24,8 @@ metadata:
     cloud.google.com/load-balancer-type: "Internal"
 spec:
   type: LoadBalancer
-  loadBalancerSourceRanges:
-  - 10.10.160.0/19
+#  loadBalancerSourceRanges:
+#  - 10.10.160.0/19
   ports:
   - name: https
     port: 8118

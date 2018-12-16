@@ -1,6 +1,6 @@
 locals {
-  zone                         = "asia-east1-b"
-  project_id                   = "vasculum-b330d4"
+  zone                         = "asia-southeast1-b"
+  project_id                   = "xanthic-1eebe7"
   spin_subnet_range            = "10.10.1.0/27"
   spin_master_ipv4_cidr_block  = "10.10.17.0/28"
   spin_k8s_services_cidr       = "10.10.18.0/24"
@@ -49,37 +49,39 @@ module "spin-cluster" {
   master_ipv4_cidr_block = "${local.spin_master_ipv4_cidr_block}"
   k8s_services_cidr      = "${local.spin_k8s_services_cidr}"
   k8s_pod_cidr           = "${local.spin_k8s_pod_cidr}"
-  node_instance_type     = "n1-standard-1"
+  node_instance_type     = "n1-standard-2"
+  node_count             = "3"
   default_node_pool_tags = ["spin-cluster-np"]
 }
 
-module "app-x-cluster" {
-  source                 = "../modules/cluster"
-  cluster_name           = "app-x-cluster"
-  vpc_name               = "${google_compute_network.app-vpc.id}"
-  vpc_self_link          = "${google_compute_network.app-vpc.self_link}"
-  project_id             = "${local.project_id}"
-  subnet_range           = "${local.app_x_subnet_range}"
-  master_ipv4_cidr_block = "${local.app_x_master_ipv4_cidr_block}"
-  k8s_services_cidr      = "${local.app_x_k8s_services_cidr}"
-  k8s_pod_cidr           = "${local.app_x_k8s_pod_cidr}"
-  node_instance_type     = "n1-standard-1"
-  default_node_pool_tags = ["app-x-cluster-np"]
-}
+#module "app-x-cluster" {
+#  source                 = "../modules/cluster"
+#  cluster_name           = "app-x-cluster"
+#  vpc_name               = "${google_compute_network.app-vpc.id}"
+#  vpc_self_link          = "${google_compute_network.app-vpc.self_link}"
+#  project_id             = "${local.project_id}"
+#  subnet_range           = "${local.app_x_subnet_range}"
+#  master_ipv4_cidr_block = "${local.app_x_master_ipv4_cidr_block}"
+#  k8s_services_cidr      = "${local.app_x_k8s_services_cidr}"
+#  k8s_pod_cidr           = "${local.app_x_k8s_pod_cidr}"
+#  node_instance_type     = "n1-standard-1"
+#  default_node_pool_tags = ["app-x-cluster-np"]
+#  depends_on             = "${module.spin-cluster.id}"
+#}
 
-module "app-y-cluster" {
-  source                 = "../modules/cluster"
-  cluster_name           = "app-y-cluster"
-  vpc_name               = "${google_compute_network.app-vpc.id}"
-  vpc_self_link          = "${google_compute_network.app-vpc.self_link}"
-  project_id             = "${local.project_id}"
-  subnet_range           = "${local.app_y_subnet_range}"
-  master_ipv4_cidr_block = "${local.app_y_master_ipv4_cidr_block}"
-  k8s_services_cidr      = "${local.app_y_k8s_services_cidr}"
-  k8s_pod_cidr           = "${local.app_y_k8s_pod_cidr}"
-  node_instance_type     = "n1-standard-1"
-  default_node_pool_tags = ["app-y-cluster-np"]
-}
+#module "app-y-cluster" {
+#  source                 = "../modules/cluster"
+#  cluster_name           = "app-y-cluster"
+#  vpc_name               = "${google_compute_network.app-vpc.id}"
+#  vpc_self_link          = "${google_compute_network.app-vpc.self_link}"
+#  project_id             = "${local.project_id}"
+#  subnet_range           = "${local.app_y_subnet_range}"
+#  master_ipv4_cidr_block = "${local.app_y_master_ipv4_cidr_block}"
+#  k8s_services_cidr      = "${local.app_y_k8s_services_cidr}"
+#  k8s_pod_cidr           = "${local.app_y_k8s_pod_cidr}"
+#  node_instance_type     = "n1-standard-1"
+#  default_node_pool_tags = ["app-y-cluster-np"]
+#}
 
 resource "google_compute_network_peering" "spin-app-peering" {
   name               = "spin-app-peering"
@@ -96,7 +98,8 @@ resource "google_compute_network_peering" "app-spin-peering" {
 }
 
 resource "google_compute_firewall" "deny-api-proxy-ingress-from-all" {
-  count = 0  # Disabled
+  count = 0 # Disabled
+
   depends_on = [
     "google_compute_network_peering.spin-app-peering",
     "google_compute_network_peering.app-spin-peering",
@@ -122,12 +125,13 @@ resource "google_compute_firewall" "deny-api-proxy-ingress-from-all" {
 
   deny {
     protocol = "tcp"
-    ports    = ["8118"]
+    ports    = ["443", "80"]
   }
 }
 
 resource "google_compute_firewall" "allow-api-proxy-ingress-from-peering" {
-  count = 0  # Disabled
+  count = 0 # Disabled
+
   depends_on = [
     "google_compute_network_peering.spin-app-peering",
     "google_compute_network_peering.app-spin-peering",
@@ -143,7 +147,9 @@ resource "google_compute_firewall" "allow-api-proxy-ingress-from-peering" {
   priority       = 800
 
   source_ranges = [
-    "${local.spin_k8s_pod_cidr}",  # Spinnaker pod will initiate the deployment
+    "${local.spin_k8s_pod_cidr}",
+    "${local.app_x_k8s_pod_cidr}",
+    "${local.app_y_k8s_pod_cidr}",
   ]
 
   target_tags = [
@@ -153,6 +159,6 @@ resource "google_compute_firewall" "allow-api-proxy-ingress-from-peering" {
 
   allow {
     protocol = "tcp"
-    ports    = ["8118"]
+    ports    = ["443", "80"]
   }
 }

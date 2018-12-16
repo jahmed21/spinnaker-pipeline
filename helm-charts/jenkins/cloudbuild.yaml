@@ -1,0 +1,34 @@
+substitutions:
+  _WORKING_DIR: .
+  _HELM_VERSION: v2.12.0
+  _JENKINS_VERSION: '2.155'
+  _CLOUDSDK_COMPUTE_ZONE: asia-southeast1-b
+  _CLOUDSDK_CONTAINER_CLUSTER: spin-cluster
+steps:
+- name: asia.gcr.io/${PROJECT_ID}/cloud-builders-community-helm:${_HELM_VERSION}
+  dir: ${_WORKING_DIR}
+  args:
+  - 'bash'
+  - '-c'
+  - |
+    set -xeo pipefail
+    helm template . \
+      --name jenkins \
+      --namespace jenkins \
+      --set Master.Image=asia.gcr.io/${PROJECT_ID}/jenkins \
+      --set Master.ImageTag=${_JENKINS_VERSION} \
+      --set Master.ServiceAnnotations."cloud\.google\.com/load-balancer-type"=Internal \
+      --set rbac.install=false > /workspace/jenkins.yaml
+
+    cat /workspace/jenkins.yaml
+
+    kubectl create namespace jenkins --dry-run --output yaml | kubectl apply -f -
+
+    kubectl apply --prune -f /workspace/jenkins.yaml -l release=jenkins
+  env:
+  - 'TILLERLESS=true'
+  - 'GCLOUD_PROJECT=${PROJECT_ID}'
+  - 'CLOUDSDK_COMPUTE_ZONE=${_CLOUDSDK_COMPUTE_ZONE}'
+  - 'CLOUDSDK_CONTAINER_CLUSTER=${_CLOUDSDK_CONTAINER_CLUSTER}'
+timeout: 1800s
+tags: ['jenkins']

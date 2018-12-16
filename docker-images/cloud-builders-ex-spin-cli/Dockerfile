@@ -1,5 +1,5 @@
 ARG PROJECT_ID
-ARG HELM_VERSION=v2.11.0
+ARG HELM_VERSION=v2.12.0
 
 FROM asia.gcr.io/${PROJECT_ID}/cloud-builders-community-helm:${HELM_VERSION}
 

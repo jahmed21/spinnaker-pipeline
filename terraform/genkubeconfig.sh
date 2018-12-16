@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 set -eo pipefail
 
 declare -A _OPTS=(
@@ -54,6 +53,10 @@ while true ; do
     *) echo "Internal error"; usage;;
 	esac
 done
+
+echo $CLUSTER
+echo $ZONE
+echo $PROJECT
 
 if [[ -z "$CLUSTER" || -z "$ZONE" || -z "$PROJECT" || ! -z "$*" ]]; then
   usage

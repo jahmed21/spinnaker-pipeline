@@ -4,7 +4,7 @@ variable "name" {}
 variable "service_account" {}
 
 variable "zone" {
-  default = "asia-east1-b"
+  default = "asia-southeast1-b"
 }
 
 variable "node_instance_type" {

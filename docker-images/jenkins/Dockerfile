@@ -23,6 +23,9 @@ RUN /usr/local/bin/install-plugins.sh \
             google-oauth-plugin \
             google-source-plugin \
             kubernetes \
+            kubernetes-credentials \
+            kubernetes-cd \
+            kubernetes-pipeline-steps \
             blueocean \
             role-strategy
 

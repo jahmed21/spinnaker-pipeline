@@ -34,7 +34,10 @@ steps:
         --set rbac.install=true \
         --set Master.Image=asia.gcr.io/${PROJECT_ID}/jenkins \
         --set Master.ImageTag=${_JENKINS_VERSION} \
-        --values values-gke.yaml
+        --values values-gke.yaml \
+        --set-file Master.InitScripts.jenkinshost=jenkinshost.groovy \
+        --set-file Master.InitScripts.rolestrategy=rolestrategy.groovy \
+        --set-file Master.InitScripts.googleoauth=googleoauth.groovy
 
   env:
   - 'TILLERLESS=true'

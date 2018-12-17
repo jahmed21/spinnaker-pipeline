@@ -74,7 +74,7 @@ def buildContainerTemplates(containers) {
     containers.each { container ->
         println "${this} Adding container template ${container}"
 
-        def containerTemplate = new ContainerTemplate(container.name ?: '', container.image ?: '')
+        def containerTemplate = new ContainerTemplate(container.name ?: 'jnlp', container.image ?: '')
 
         containerTemplate.workingDir = container.workingDir ?: ''
         containerTemplate.command = container.command ?: ''
@@ -229,7 +229,7 @@ private configure(config) {
     println "${this}: Done"
 }
 
-def project_id = System.getenv( "PROJECT_ID")
+def project_id = System.getenv("PROJECT_ID")
 def image_agent_default = "asia.gcr.io/${project_id}/jenkins-agent-default:3.27-1"
 def image_agent_nodejs = "asia.gcr.io/${project_id}/jenkins-agent-nodejs:11.4.0"
 
@@ -239,14 +239,11 @@ def default_podtempate = [
         instanceCap       : 10,
         workspaceVolume   : [type: 'EmptyDirWorkspaceVolume', memory: false],
         envVars           : [[type: 'KeyValueEnvVar', key: 'JENKINS_URL', value: 'http://jenkins:8080']],
-        containerTemplates: [[name                 : 'default',
-                              image                : image_agent_default,
-                              workingDir           : '/home/jenkins',
-                              args                 : '${computer.jnlpmac} ${computer.name}',
+        containerTemplates: [[image                : image_agent_default,
                               resourceRequestCpu   : '200m',
                               resourceRequestMemory: '256Mi',
                               resourceLimitCpu     : '500m',
-                              resourceLimitMemory  : '2048Mi',
+                              resourceLimitMemory  : '2048Mi'
                              ]]
 ]
 
@@ -256,14 +253,11 @@ def nodejs_podtempate = [
         instanceCap       : 10,
         workspaceVolume   : [type: 'EmptyDirWorkspaceVolume', memory: false],
         envVars           : [[type: 'KeyValueEnvVar', key: 'JENKINS_URL', value: 'http://jenkins:8080']],
-        containerTemplates: [[name                 : 'default',
-                              image                : image_agent_nodejs,
-                              workingDir           : '/home/jenkins',
-                              args                 : '${computer.jnlpmac} ${computer.name}',
+        containerTemplates: [[image                : image_agent_nodejs,
                               resourceRequestCpu   : '200m',
                               resourceRequestMemory: '256Mi',
                               resourceLimitCpu     : '500m',
-                              resourceLimitMemory  : '2048Mi',
+                              resourceLimitMemory  : '2048Mi'
                              ]]
 ]
 configure 'ex-services': [

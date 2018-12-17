@@ -1,9 +1,9 @@
-import com.michelin.cio.hudson.plugins.rolestrategy.*
 import java.lang.reflect.Constructor
 import java.lang.reflect.Method
-import hudson.security.*
-import hudson.model.*;
-import jenkins.model.*;
+import jenkins.model.Jenkins
+import com.michelin.cio.hudson.plugins.rolestrategy.RoleBasedAuthorizationStrategy
+import com.michelin.cio.hudson.plugins.rolestrategy.Role
+import hudson.security.Permission
 
 private configure(config) {
     println "${this}: About to configure ${config}"

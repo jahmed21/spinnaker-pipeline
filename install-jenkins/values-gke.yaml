@@ -1,16 +1,18 @@
 Master:
+  CredentialsXmlSecret: jenkins-credentials
+  SecretsFilesSecret: jenkins-secret
   ContainerEnv:
     - name: JENKINS_HOSTNAME
       value: "http://jenkins.manikann.com:8080"
     - name: GOOGLE_OAUTH_CLIENT_ID
       valueFrom:
         secretKeyRef:
-          name: google-oauth
+          name: jenkins-secret
           key: client-id
     - name: GOOGLE_OAUTH_CLIENT_SECRET
       valueFrom:
         secretKeyRef:
-          name: google-oauth
+          name: jenkins-secret
           key: client-secret
   ServiceType: ClusterIP
   ServiceAnnotations:

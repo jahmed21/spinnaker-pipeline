@@ -113,11 +113,11 @@ Master:
   #  - |
   #    print 'adding global pipeline libraries, register properties, bootstrap jobs...'
   # Kubernetes secret that contains a 'credentials.xml' for Jenkins
-  # CredentialsXmlSecret: jenkins-credentials
+  CredentialsXmlSecret: jenkins-credentials
   # Kubernetes secret that contains files to be put in the Jenkins 'secrets' directory,
   # useful to manage encryption keys used for credentials.xml for instance (such as
   # master.key and hudson.util.Secret)
-  # SecretsFilesSecret: jenkins-secrets
+  SecretsFilesSecret: jenkins-secrets
   # Jenkins XML job configs to provision
   # Jobs: |-
   #   test: |-

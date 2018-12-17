@@ -2,8 +2,10 @@ import org.csanchez.jenkins.plugins.kubernetes.*
 import org.csanchez.jenkins.plugins.kubernetes.model.*
 import org.csanchez.jenkins.plugins.kubernetes.volumes.*
 import org.csanchez.jenkins.plugins.kubernetes.volumes.workspace.*
+import jenkins.model.Jenkins
 
 def addKubernetesCloud(cloudList, config) {
+    println "${this} Adding kubernetes cloud ${config}"
     def cloud = new KubernetesCloud(
             cloudName = config.cloudName ?: 'Kubernetes',
             templates = null,
@@ -28,7 +30,7 @@ def addKubernetesCloud(cloudList, config) {
 def buildPodTemplates(podTemplates) {
     def results = []
     podTemplates.each { template ->
-
+        println "${this} Adding pod template ${template}"
         def podTemplate = new PodTemplate()
 
         podTemplate.inheritFrom = template.inheritFrom ?: ''
@@ -47,26 +49,21 @@ def buildPodTemplates(podTemplates) {
         podTemplate.resourceLimitMemory = template.resourceLimitMemory ?: ''
 
         podTemplate.privileged = template.privileged ?: false
-        podTemplate.alwaysPullImage = template.alwaysPullImage ?: false
+        podTemplate.alwaysPullImage = template.alwaysPullImage ?: true
         podTemplate.instanceCap = template.instanceCap ?: 0
-        podTemplate.slaveConnectTimeout = template.slaveConnectTimeout ?: ''
-        podTemplate.idleMinutes = template.idleMinutes ?: ''
+        podTemplate.slaveConnectTimeout = template.slaveConnectTimeout ?: 100
+        podTemplate.idleMinutes = template.idleMinutes ?: 0
         podTemplate.customWorkspaceVolumeEnabled = template.customWorkspaceVolumeEnabled ?: ''
 
         podTemplate.containers = buildContainerTemplates(template.containerTemplates)
         podTemplate.envVars = buildEnvVars(template.envVars)
         podTemplate.workspaceVolume = buildWorkspaceVolume(template.workspaceVolume)
         podTemplate.volumes = buildPodVolumes(template.podVolumes)
-
-        podTemplate.slaveConnectTimeout = template.slaveConnectTimeout ?: ''
         podTemplate.nodeUsageMode = buildNodeUsageMode(template.nodeUsageMode)
-
         podTemplate.annotations = buildPodAnnotations(template.annotations)
         podTemplate.imagePullSecrets = buildImagePullSecrets(template.imagePullSecrets)
-
         // hoping this will not be needed as it looks like a pain to implement
         //podTemplate.nodeProperties = buildNodeProperties(template.nodeProperties)
-
         results.add(podTemplate)
     }
     return results
@@ -75,6 +72,7 @@ def buildPodTemplates(podTemplates) {
 def buildContainerTemplates(containers) {
     def results = []
     containers.each { container ->
+        println "${this} Adding container template ${container}"
 
         def containerTemplate = new ContainerTemplate(container.name ?: '', container.image ?: '')
 
@@ -87,7 +85,7 @@ def buildContainerTemplates(containers) {
         containerTemplate.resourceLimitMemory = container.resourceLimitMemory ?: ''
 
         containerTemplate.privileged = container.privileged ?: false
-        containerTemplate.alwaysPullImage = container.alwaysPullImage ?: false
+        containerTemplate.alwaysPullImage = container.alwaysPullImage ?: true
         containerTemplate.ttyEnabled = container.ttyEnabled ?: false
 
         containerTemplate.envVars = buildEnvVars(container.envVars)
@@ -119,7 +117,7 @@ def buildEnvVars(envVars) {
 
 def buildNodeUsageMode(nodeUsageMode) {
     if (!nodeUsageMode) {
-        return
+        return hudson.model.Node.Mode.NORMAL
     }
     switch (nodeUsageMode.type) {
         case 'NORMAL':
@@ -218,10 +216,61 @@ def buildPodVolumes(podVolumes) {
     return results
 }
 
-def clouds = instance.clouds
-if (clouds) {
-    clouds.remove(instance.clouds.get(KubernetesCloud.class))
+private configure(config) {
+    println "${this}: About to configure ${config}"
+    def instance = Jenkins.getInstance()
+    def clouds = instance.clouds
+    if (clouds) {
+        clouds.remove(instance.clouds.get(KubernetesCloud.class))
+    }
+    config.each { name, details ->
+        addKubernetesCloud(clouds, details)
+    }
+    println "${this}: Done"
 }
-config.each { name, details ->
-    addKubernetesCloud(clouds, details)
-}
+
+def project_id = System.getenv( "PROJECT_ID")
+def image_agent_default = "asia.gcr.io/${project_id}/jenkins-agent-default:3.27-1"
+def image_agent_nodejs = "asia.gcr.io/${project_id}/jenkins-agent-nodejs:11.4.0"
+
+def default_podtempate = [
+        name              : 'default',
+        label             : 'default gcloud',
+        instanceCap       : 10,
+        workspaceVolume   : [type: 'EmptyDirWorkspaceVolume', memory: false],
+        envVars           : [[type: 'KeyValueEnvVar', key: 'JENKINS_URL', value: 'http://jenkins:8080']],
+        containerTemplates: [[name                 : 'default',
+                              image                : image_agent_default,
+                              workingDir           : '/home/jenkins',
+                              args                 : '${computer.jnlpmac} ${computer.name}',
+                              resourceRequestCpu   : '200m',
+                              resourceRequestMemory: '256Mi',
+                              resourceLimitCpu     : '500m',
+                              resourceLimitMemory  : '2048Mi',
+                             ]]
+]
+
+def nodejs_podtempate = [
+        name              : 'nodejs',
+        label             : 'nodejs node',
+        instanceCap       : 10,
+        workspaceVolume   : [type: 'EmptyDirWorkspaceVolume', memory: false],
+        envVars           : [[type: 'KeyValueEnvVar', key: 'JENKINS_URL', value: 'http://jenkins:8080']],
+        containerTemplates: [[name                 : 'default',
+                              image                : image_agent_nodejs,
+                              workingDir           : '/home/jenkins',
+                              args                 : '${computer.jnlpmac} ${computer.name}',
+                              resourceRequestCpu   : '200m',
+                              resourceRequestMemory: '256Mi',
+                              resourceLimitCpu     : '500m',
+                              resourceLimitMemory  : '2048Mi',
+                             ]]
+]
+configure 'ex-services': [
+        cloudName    : 'EX Services',
+        namespace    : 'jenkins',
+        serverUrl    : 'https://kubernetes.default',
+        jenkinsUrl   : 'http://jenkins:8080',
+        jenkinsTunnel: 'jenkins-agent:50000',
+        podTemplates : [default_podtempate, nodejs_podtempate]
+]

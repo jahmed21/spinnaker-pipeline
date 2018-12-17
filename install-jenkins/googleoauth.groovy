@@ -1,6 +1,6 @@
-import hudson.model.*;
-import jenkins.model.*;
-import org.jenkinsci.plugins.googlelogin.*;
+import org.jenkinsci.plugins.googlelogin.GoogleOAuth2SecurityRealm;
+import jenkins.model.Jenkins
+
 
 private configure(config) {
     println "${this}: About to configure ${config}"

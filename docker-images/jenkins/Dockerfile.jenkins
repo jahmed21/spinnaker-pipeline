@@ -1,7 +1,11 @@
-ARG JENKINS_VERSION=2.155
+ARG JENKINS_VERSION
 FROM jenkins/jenkins:${JENKINS_VERSION}
 
-ENV CLOUDSDK_CORE_DISABLE_PROMPTS=1 PATH=/opt/google-cloud-sdk/bin:$PATH
+ARG PROJECT_ID
+
+ENV CLOUDSDK_CORE_DISABLE_PROMPTS=1 \
+    PATH=/opt/google-cloud-sdk/bin:$PATH \
+    PROJECT_ID=${PROJECT_ID}
 
 USER root
 
@@ -16,7 +20,9 @@ RUN set -x \
 
 USER jenkins
 
-RUN gcloud info
+RUN set -ex \
+    && gcloud info \
+    && env | sort
 
 RUN /usr/local/bin/install-plugins.sh \
             google-login \
@@ -27,5 +33,6 @@ RUN /usr/local/bin/install-plugins.sh \
             kubernetes-cd \
             kubernetes-pipeline-steps \
             blueocean \
-            role-strategy
+            role-strategy \
+            job-dsl
 

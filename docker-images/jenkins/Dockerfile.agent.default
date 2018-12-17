@@ -1,7 +1,15 @@
-ARG JENKINS_SLAVE_VERSION=3.27-1
-FROM jenkins/jnlp-slave:${JENKINS_SLAVE_VERSION}
-ENV CLOUDSDK_CORE_DISABLE_PROMPTS=1 PATH=/opt/google-cloud-sdk/bin:$PATH
+ARG JENKINS_AGENT_VERSION
+
+FROM jenkins/jnlp-slave:${JENKINS_AGENT_VERSION}
+
+ARG PROJECT_ID
+
+ENV CLOUDSDK_CORE_DISABLE_PROMPTS=1 \
+    PATH=/opt/google-cloud-sdk/bin:$PATH \
+    PROJECT_ID=${PROJECT_ID}
+
 USER root
+
 RUN set -x \
     && apt-get update -y \
     && apt-get install -y jq libapparmor-dev libseccomp-dev \

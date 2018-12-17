@@ -11,7 +11,7 @@ This directory contains:
 
 - `main.go` contains the HTTP server implementation. It responds to all HTTP
   requests with a  `Hello, world!` response.
-- `Dockerfile` is used to build the Docker image for the application.
+- `Dockerfile.jenkins` is used to build the Docker image for the application.
 
 This application is available as two Docker images, which respond to requests
 with different version numbers:

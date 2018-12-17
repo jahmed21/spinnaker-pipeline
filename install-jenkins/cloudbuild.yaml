@@ -6,6 +6,7 @@ substitutions:
   _CLOUDSDK_COMPUTE_ZONE: asia-southeast1-b
   _CLOUDSDK_CONTAINER_CLUSTER: spin-cluster
   _HELM_RELEASE_NAME: jenkins
+  _JSON_KEY_NAME: 'spinnaker-gcs-access-key.json'
 steps:
 - name: asia.gcr.io/${PROJECT_ID}/cloud-builders-community-helm:${_HELM_VERSION}
   dir: ${_WORKING_DIR}
@@ -17,11 +18,18 @@ steps:
 
     curl https://ipinfo.io/ip
 
+    gsutil cp gs://${PROJECT_ID}-halyard-config/${_JSON_KEY_NAME} .
+
     kubectl create namespace jenkins --dry-run --output yaml | kubectl apply -f -
 
-    kubectl --namespace jenkins create secret generic google-oauth \
-      --from-literal=client-id=635753837818-32smcg331o055bostl0046u91pb1q55u.apps.googleusercontent.com \
-      --from-literal=client-secret=kyxiX-IWjmzh1Qa7Re8EUJBx \
+    kubectl --namespace jenkins create secret generic jenkins-secret \
+      --from-literal=client-id=${_OAUTH_CLIENT_ID} \
+      --from-literal=client-secret=${_OAUTH_CLIENT_SECRET}\
+      --from-file=csr-key.json=${_JSON_KEY_NAME} \
+      --dry-run --output yaml | kubectl apply -f -
+
+    kubectl --namespace jenkins create secret generic jenkins-credentials \
+      --from-file=credentials.xml \
       --dry-run --output yaml | kubectl apply -f -
 
     helm upgrade ${_HELM_RELEASE_NAME} stable/jenkins \
@@ -37,6 +45,7 @@ steps:
         --values values-gke.yaml \
         --set-file Master.InitScripts.jenkinshost=jenkinshost.groovy \
         --set-file Master.InitScripts.rolestrategy=rolestrategy.groovy \
+        --set-file Master.InitScripts.kubernetes=kubernetes.groovy \
         --set-file Master.InitScripts.googleoauth=googleoauth.groovy
 
   env:

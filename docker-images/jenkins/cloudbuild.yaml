@@ -1,20 +1,74 @@
 substitutions:
   _WORKING_DIR: .
   _JENKINS_VERSION: '2.155'
+  _JENKINS_AGENT_VERSION: '3.27-1'
+  _NODEJS_VERSION: '11.4.0'
+  _YARN_VERSION: '1.12.3'
 steps:
-- name: 'gcr.io/cloud-builders/docker'
-  dir: ${_WORKING_DIR}
-  args: [
-    'build',
-    '--build-arg',
-    'BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"`',
-    '--build-arg',
-    'COMMIT_SHA=$COMMIT_SHA',
-    '--build-arg',
-    'JENKINS_VERSION=${_JENKINS_VERSION}',
-    '--tag=asia.gcr.io/$PROJECT_ID/jenkins:${_JENKINS_VERSION}',
-    '.'
-  ]
-images: ['asia.gcr.io/$PROJECT_ID/jenkins:${_JENKINS_VERSION}']
+  - name: 'gcr.io/cloud-builders/docker'
+    dir: ${_WORKING_DIR}
+    args: [
+      'build',
+      '--build-arg',
+      'BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"`',
+      '--build-arg',
+      'COMMIT_SHA=$COMMIT_SHA',
+      '--build-arg',
+      'JENKINS_VERSION=${_JENKINS_VERSION}',
+      '--build-arg',
+      'PROJECT_ID=${PROJECT_ID}',
+      '--tag',
+      'asia.gcr.io/$PROJECT_ID/jenkins:${_JENKINS_VERSION}',
+      '--file',
+      'Dockerfile.jenkins',
+      '.'
+    ]
+  - name: 'gcr.io/cloud-builders/docker'
+    dir: ${_WORKING_DIR}
+    args: [
+      'build',
+      '--build-arg',
+      'BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"`',
+      '--build-arg',
+      'COMMIT_SHA=$COMMIT_SHA',
+      '--build-arg',
+      'JENKINS_AGENT_VERSION=${_JENKINS_AGENT_VERSION}',
+      '--build-arg',
+      'PROJECT_ID=${PROJECT_ID}',
+      '--tag',
+      'asia.gcr.io/$PROJECT_ID/jenkins-agent-default:${_JENKINS_AGENT_VERSION}',
+      '--file',
+      'Dockerfile.agent.default',
+      '.'
+    ]
+  - name: 'gcr.io/cloud-builders/docker'
+    dir: ${_WORKING_DIR}
+    args: [
+      'build',
+      '--build-arg',
+      'BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"`',
+      '--build-arg',
+      'COMMIT_SHA=$COMMIT_SHA',
+      '--build-arg',
+      'JENKINS_AGENT_VERSION=${_JENKINS_AGENT_VERSION}',
+      '--build-arg',
+      'PROJECT_ID=${PROJECT_ID}',
+      '--build-arg',
+      'NODEJS_VERSION=${_NODEJS_VERSION}',
+      '--build-arg',
+      'YARN_VERSION=${_YARN_VERSION}',
+      '--tag',
+      'asia.gcr.io/$PROJECT_ID/jenkins-agent-nodejs:${_NODEJS_VERSION}',
+      '--file',
+      'Dockerfile.agent.nodejs',
+      '.'
+    ]
+images: [
+  'asia.gcr.io/$PROJECT_ID/jenkins:${_JENKINS_VERSION}',
+  'asia.gcr.io/$PROJECT_ID/jenkins-agent-default:${_JENKINS_AGENT_VERSION}',
+  'asia.gcr.io/$PROJECT_ID/jenkins-agent-nodejs:${_NODEJS_VERSION}'
+]
+
 tags:
   - "jenkins"
+  - "jenkins-agent-default"

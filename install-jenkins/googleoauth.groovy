@@ -11,5 +11,8 @@ private configure(config) {
     println "${this}: Done"
 }
 
-configure client_id: System.getenv('GOOGLE_OAUTH_CLIENT_ID'),
-          client_secret: System.getenv('GOOGLE_OAUTH_CLIENT_SECRET')
+Thread.start {
+    sleep 20000
+    configure client_id: System.getenv('GOOGLE_OAUTH_CLIENT_ID'),
+            client_secret: System.getenv('GOOGLE_OAUTH_CLIENT_SECRET')
+}

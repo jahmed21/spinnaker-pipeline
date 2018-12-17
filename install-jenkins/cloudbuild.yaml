@@ -39,13 +39,18 @@ steps:
         --timeout 900 \
         --version  ${_CHART_VERSION} \
         --namespace jenkins \
+        --values values-gke.yaml \
         --set rbac.install=true \
         --set Master.Image=asia.gcr.io/${PROJECT_ID}/jenkins \
         --set Master.ImageTag=${_JENKINS_VERSION} \
-        --values values-gke.yaml \
+        --set Master.ContainerEnv[3].name=MOTHER_SEED_JOB_GIT_URL \
+        --set Master.ContainerEnv[3].value=https://source.developers.google.com/p/${PROJECT_ID}/r/jenkins-test \
+        --set Master.ContainerEnv[4].name=MOTHER_SEED_JOB_TARGET \
+        --set Master.ContainerEnv[4].value=mother-seed-jobs/**/*.groovy \
         --set-file Master.InitScripts.jenkinshost=jenkinshost.groovy \
         --set-file Master.InitScripts.rolestrategy=rolestrategy.groovy \
         --set-file Master.InitScripts.kubernetes=kubernetes.groovy \
+        --set-file Master.InitScripts.jobdsl=jobdsl.groovy \
         --set-file Master.InitScripts.googleoauth=googleoauth.groovy
 
   env:

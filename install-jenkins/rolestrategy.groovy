@@ -43,11 +43,14 @@ private setRoles(authorizationStrategy, strategy) {
     }
 }
 
-configure roles: [[name       : 'viewer',
-                   permissions: ['hudson.model.Hudson.Read'],
-                   members    : ['authenticated']
-                  ],
-                  [name       : 'admin',
-                   permissions: ['hudson.model.Hudson.Administer'],
-                   members    : ['manikann@gmail.com', 'manikandan.natarajan@anz.com']
-                  ]]
+Thread.start {
+    sleep 20000
+    configure roles: [[name       : 'viewer',
+                       permissions: ['hudson.model.Hudson.Read'],
+                       members    : ['authenticated']
+                      ],
+                      [name       : 'admin',
+                       permissions: ['hudson.model.Hudson.Administer'],
+                       members    : ['manikann@gmail.com', 'manikandan.natarajan@anz.com']
+                      ]]
+}

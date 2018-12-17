@@ -78,7 +78,7 @@ def buildContainerTemplates(containers) {
 
         containerTemplate.workingDir = container.workingDir ?: ''
         containerTemplate.command = container.command ?: ''
-        containerTemplate.args = container.args ?: ''
+        containerTemplate.args = container.args ?: '${computer.jnlpmac} ${computer.name}'
         containerTemplate.resourceRequestCpu = container.resourceRequestCpu ?: ''
         containerTemplate.resourceRequestMemory = container.resourceRequestMemory ?: ''
         containerTemplate.resourceLimitCpu = container.resourceLimitCpu ?: ''
@@ -237,9 +237,11 @@ def default_podtempate = [
         name              : 'default',
         label             : 'default gcloud',
         instanceCap       : 10,
+        idleMinutes       : 15,
         workspaceVolume   : [type: 'EmptyDirWorkspaceVolume', memory: false],
         envVars           : [[type: 'KeyValueEnvVar', key: 'JENKINS_URL', value: 'http://jenkins:8080']],
         containerTemplates: [[image                : image_agent_default,
+
                               resourceRequestCpu   : '200m',
                               resourceRequestMemory: '256Mi',
                               resourceLimitCpu     : '500m',
@@ -251,6 +253,7 @@ def nodejs_podtempate = [
         name              : 'nodejs',
         label             : 'nodejs node',
         instanceCap       : 10,
+        idleMinutes       : 15,
         workspaceVolume   : [type: 'EmptyDirWorkspaceVolume', memory: false],
         envVars           : [[type: 'KeyValueEnvVar', key: 'JENKINS_URL', value: 'http://jenkins:8080']],
         containerTemplates: [[image                : image_agent_nodejs,

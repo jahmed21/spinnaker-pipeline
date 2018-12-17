@@ -30,6 +30,7 @@ variable "master_authorized_cidr_blocks" {
     { cidr_block = "35.192.0.0/12" },
     { cidr_block = "35.184.0.0/13" },
     { cidr_block = "104.196.0.0/14" },
+    { cidr_block = "104.152.0.0/14" },
     { cidr_block = "156.13.70.0/23" },
     { cidr_block = "182.55.128.0/19" },
     { cidr_block = "10.10.1.0/27" },
